@@ -1,7 +1,0 @@
-modules = ["cpp-clang14"]
-[agent]
-expertMode = true
-
-[nix]
-channel = "stable-25_05"
-packages = ["qt6.full", "cmake"]
