@@ -4,7 +4,17 @@
 #include <fstream>
 #include <string>
 
-const int BLOCK_SIZE = 255;
+// --- MACROS ---
+
+#define BLOCK_SIZE 256
+#define MAX_BLOCKS 8192
+#define DISK_SIZE (BLOCK_SIZE * MAX_BLOCKS)
+#define MAX_INODES 1638
+#define MAX_DIR_ENTRIES 16
+#define DIRECT_POINTERS 12
+#define MAX_FILE_NAME 12
+
+// --- STRUCTS ---
 
 // Volume Control Block
 struct SuperBlock
@@ -12,15 +22,23 @@ struct SuperBlock
   int totalBlocks;
   int blockSize;
   int freeBlocksCount;
-  int freeBlocks[1000];
+  int freeBlocks[MAX_BLOCKS];
+
   int freeInnodesCount;
-  int freeInnodes[1000];
+  int freeInnodes[MAX_INODES];
+};
+
+struct dirEntry
+{
+  char name[MAX_FILE_NAME];
+  int inode;
 };
 
 // Special kind of file that maps names to inodes
 struct Directory
 {
-  int indexBlock[1000]; 
+  int entriesCount;
+  dirEntry entries[MAX_DIR_ENTRIES];
 };
 
 // Data of the file
@@ -30,18 +48,18 @@ struct Block
   
 };
 
-const int DIRECT_POINTERS = 10;
-
 // File Control Block
 struct Innode
 {
   int id;
   int type; // 0 for file, 1 for directory
   int size;
-  std::string permissions;
+  char permissions[4];
   int directPointers[DIRECT_POINTERS];
   int indirectPointer;
 };
+
+// --- CLASS ---
 
 class FileSystem {
   // Attributes
