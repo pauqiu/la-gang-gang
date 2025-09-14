@@ -1,10 +1,8 @@
-modules = ["cpp-clang14"]
-[agent]
-expertMode = true
+run = "rm -rf build && mkdir build && cmake -S . -B build && cmake --build build && ./build/bin/la-gang-gang"
 
 [nix]
-channel = "stable-25_05"
-packages = ["qt6.full", "cmake"]
+packages = ["cmake", "gcc"]
 
-run = "cmake -S . -B build && cmake --build build && ./build/main"
+[agent]
+expertMode = true
 
