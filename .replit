@@ -5,3 +5,6 @@ expertMode = true
 [nix]
 channel = "stable-25_05"
 packages = ["qt6.full", "cmake"]
+
+run = "cmake -S . -B build && cmake --build build && ./build/main"
+
