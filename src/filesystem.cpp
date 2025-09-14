@@ -36,8 +36,20 @@ void FileSystem::initializeDisk()
     }
 
     newDiskFile.close();
+
+    setMetaData();
   }
 
+}
+
+void FileSystem::setMetaData()
+{
+  this->superBlock = {};
+
+  std::cout << superBlock.totalBlocks << std::endl;
+
+  
+  
 }
 
 void FileSystem::saveMetaData()

@@ -19,13 +19,15 @@
 // Volume Control Block
 struct SuperBlock
 {
+  int magicNumber;  // validates the disk
   int totalBlocks;
+  int totalInodes;
   int blockSize;
+  int rootInode;
   int freeBlocksCount;
   int freeBlocks[MAX_BLOCKS];
-
-  int freeInnodesCount;
-  int freeInnodes[MAX_INODES];
+  int freeInodesCount;
+  int freeInodes[MAX_INODES];
 };
 
 struct dirEntry
@@ -49,14 +51,15 @@ struct Block
 };
 
 // File Control Block
-struct Innode
+struct Inode
 {
   int id;
-  int type; // 0 for file, 1 for directory
-  int size;
+  int fileType; // 0 for file, 1 for directory
+  int fileSize;
   char permissions[4];
   int directPointers[DIRECT_POINTERS];
   int indirectPointer;
+  bool isFree;
 };
 
 // --- CLASS ---
@@ -67,13 +70,15 @@ class FileSystem {
     std::string diskName;
     std::fstream diskFile;
     SuperBlock superBlock;
+    vector<bool> inodeBitmap;
+    vector<bool> blockBitmap;
 
   // Methods
   private:
     void initializeDisk();
+    void setMetaData();
     void loadMetaData();
     void saveMetaData();
-    
 
   public:
     FileSystem(std::string diskName);
