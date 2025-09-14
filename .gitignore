@@ -29,6 +29,7 @@ CMakeLists.txt.user*
 build/
 debug/
 release/
+.ccls-cache/
 
 # Qt unit tests
 target_wrapper.*
