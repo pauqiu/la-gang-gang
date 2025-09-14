@@ -16,8 +16,8 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
 
 FileSystem::~FileSystem() 
 {
-  if (this->disk_file.is_open()) {
-    this->disk_file.close();
+  if (this->diskFile.is_open()) {
+    this->diskFile.close();
   }
 }
 
@@ -29,9 +29,20 @@ void FileSystem::initializeDisk()
   if (!newDiskFile.is_open()) {
     std::cerr << "Error creating disk file." << std::endl;
   } else {
-    // TODO: Initialize the disk file.
+    
+    char buffer[BLOCK_SIZE] = {0};
+    for (int i = 0; i < MAX_BLOCKS; i++) {
+        newDiskFile.write(buffer, BLOCK_SIZE);
+    }
+
+    newDiskFile.close();
   }
 
+}
+
+void FileSystem::saveMetaData()
+{
+  
 }
 
 bool FileSystem::createFile(const std::string fileName)

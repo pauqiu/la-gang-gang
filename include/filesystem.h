@@ -66,10 +66,13 @@ class FileSystem {
   private:
     std::string diskName;
     std::fstream diskFile;
+    SuperBlock superBlock;
 
   // Methods
   private:
     void initializeDisk();
+    void loadMetaData();
+    void saveMetaData();
     
 
   public:
