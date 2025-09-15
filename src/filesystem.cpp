@@ -35,10 +35,18 @@ void FileSystem::initializeDisk()
         newDiskFile.write(buffer, BLOCK_SIZE);
     }
 
-    newDiskFile.close();
-
     setMetaData();
   }
+
+  char buffer[BLOCK_SIZE] = {0};
+
+  this->diskFile.seekg(0);
+  this->diskFile.getline(buffer, BLOCK_SIZE);
+
+  std::cout << buffer << std::endl;
+
+  this->diskFile.close();
+  std::cout << "Disk created successfully." << std::endl;
 
 }
 
@@ -46,33 +54,67 @@ void FileSystem::setMetaData()
 {
   this->superBlock = {};
 
-  std::cout << superBlock.totalBlocks << std::endl;
+  this->superBlock.magicNumber = 0xACBD0005;
+  this->superBlock.totalBlocks = MAX_BLOCKS;
+  this->superBlock.rootInode = 0;
 
+  // initialize block bitmap
+  this->blockBitmap = std::vector<bool>(MAX_BLOCKS, false);
   
-  
+  // initialize inode bitmap
+  this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
+
+  saveMetaData();
 }
 
 void FileSystem::saveMetaData()
 {
+  if (this->diskFile.is_open()) return;
+
+  this->superBlock.ma
+
+  // write superblock
+  this->diskFile.seekp(0);
+  this->diskFile.write(reinterpret_cast<const char*>(&this->superBlock), sizeof(SuperBlock));
   
 }
 
 bool FileSystem::createFile(const std::string fileName)
 {
+  int freeInode = -1;
+  for (int i = 0; i < inodeBitmap.size(); i++) 
+  {
+    if (!inodeBitmap[i])
+    {
+      freeInode = i;
+      inodeBitmap[i] = true;
+      break;
+    }
+  }
+  if (freeInode == -1) return false;  // no free inode
+
+  //  initialize inode
+  Inode node;
+  node.id = freeInode;
+  node.fileSize = 0;
+  node.fileType = 1;  // file
+
+  //  ... guardar en el disco
+
   return true;
 }
 
-bool FileSystem::deleteFile(const std::string fileName)
+void FileSystem::deleteFile(const std::string fileName)
 {
-  return true;
+ 
 }
 
-bool FileSystem::readFile(const std::string fileName)
+void FileSystem::readFile(const std::string fileName)
 {
-  return true;
+  
 }
 
-bool FileSystem::writeFile(const std::string fileName, const std::string content)
+void FileSystem::writeFile(const std::string fileName, const std::string content)
 {
-  return true;
+  
 }

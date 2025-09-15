@@ -1,16 +1,17 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
+#include <cstring>
 #include <fstream>
 #include <string>
+#include <vector>
 
 // --- MACROS ---
 
 #define BLOCK_SIZE 256
 #define MAX_BLOCKS 8192
 #define DISK_SIZE (BLOCK_SIZE * MAX_BLOCKS)
-#define MAX_INODES 1638
-#define MAX_DIR_ENTRIES 16
+#define TOTAL_INODES 512
 #define DIRECT_POINTERS 12
 #define MAX_FILE_NAME 12
 
@@ -21,13 +22,7 @@ struct SuperBlock
 {
   int magicNumber;  // validates the disk
   int totalBlocks;
-  int totalInodes;
-  int blockSize;
   int rootInode;
-  int freeBlocksCount;
-  int freeBlocks[MAX_BLOCKS];
-  int freeInodesCount;
-  int freeInodes[MAX_INODES];
 };
 
 struct dirEntry
@@ -36,17 +31,14 @@ struct dirEntry
   int inode;
 };
 
-// Special kind of file that maps names to inodes
-struct Directory
-{
-  int entriesCount;
-  dirEntry entries[MAX_DIR_ENTRIES];
-};
-
 // Data of the file
-struct Block
+struct DataBlock
 {
   char data[BLOCK_SIZE];
+
+  DataBlock() {
+      memset(data, 0, BLOCK_SIZE);
+  }
   
 };
 
@@ -70,8 +62,8 @@ class FileSystem {
     std::string diskName;
     std::fstream diskFile;
     SuperBlock superBlock;
-    vector<bool> inodeBitmap;
-    vector<bool> blockBitmap;
+    std::vector<bool> inodeBitmap;
+    std::vector<bool> blockBitmap;
 
   // Methods
   private:
@@ -79,16 +71,21 @@ class FileSystem {
     void setMetaData();
     void loadMetaData();
     void saveMetaData();
+    //int findFreeInode();
+    //int findFreeBlock();
+    //int allocateBlock();
+    //void deallocateBlock(int blockIndex);
+    //void writeBlock(int blockIndex, const std::string content);
+    //std::string readBlock(int blockIndex);
 
   public:
     FileSystem(std::string diskName);
     ~FileSystem();
     bool createFile(const std::string fileName);
-    bool deleteFile(const std::string fileName);
-    bool readFile(const std::string fileName);
-    bool writeFile(const std::string fileName, const std::string content);
-    
-
+    void deleteFile(const std::string fileName);
+    void readFile(const std::string fileName);
+    void writeFile(const std::string fileName, const std::string content);
+  
 };
 
 #endif // FILESYSTEM_H
