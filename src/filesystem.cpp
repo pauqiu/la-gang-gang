@@ -35,15 +35,10 @@ void FileSystem::initializeDisk()
         newDiskFile.write(buffer, BLOCK_SIZE);
     }
 
+    newDiskFile.close();
+
     setMetaData();
   }
-
-  char buffer[BLOCK_SIZE] = {0};
-
-  this->diskFile.seekg(0);
-  this->diskFile.getline(buffer, BLOCK_SIZE);
-
-  std::cout << buffer << std::endl;
 
   this->diskFile.close();
   std::cout << "Disk created successfully." << std::endl;
@@ -69,9 +64,7 @@ void FileSystem::setMetaData()
 
 void FileSystem::saveMetaData()
 {
-  if (this->diskFile.is_open()) return;
-
-  this->superBlock.ma
+  this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
 
   // write superblock
   this->diskFile.seekp(0);
