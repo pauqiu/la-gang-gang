@@ -74,9 +74,11 @@ class FileSystem {
     void loadMetaData();
     void saveMetaData();
     void saveInodeBitmap();
+    void unpackInodeBitmap();
     //int findFreeInode();
     //int findFreeBlock();
     //int allocateBlock();
+    int allocateInode();
     //void deallocateBlock(int blockIndex);
     //void writeBlock(int blockIndex, const std::string content);
     //std::string readBlock(int blockIndex);

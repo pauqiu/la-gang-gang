@@ -4,6 +4,11 @@
 
 FileSystem::FileSystem(std::string diskName) : diskName(diskName)
 {
+  // Initialize the superblock and bitmaps.
+  this->superBlock = {};
+  this->blockBitmap = std::vector<bool>(MAX_BLOCKS, false);
+  this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
+  
   // Check if the disk file already exists.
   this->diskFile.open(diskName, std::ios::in | std::ios::out | std::ios::binary);
   
@@ -12,6 +17,11 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
     initializeDisk();
   } else {
     loadMetaData();
+    std::cout << this->superBlock.magicNumber << std::endl;
+    std::cout << this->superBlock.totalBlocks << std::endl;
+    std::cout << this->superBlock.rootInode << std::endl;
+    std::cout << this->inodeBitmap.size() << std::endl;
+    std::cout << "Disk loaded successfully." << std::endl;
   }
    
 }
@@ -49,26 +59,19 @@ void FileSystem::initializeDisk()
 
 void FileSystem::setMetaData()
 {
-  this->superBlock = {};
 
   this->superBlock.magicNumber = 0xACBD0005;
   this->superBlock.totalBlocks = MAX_BLOCKS;
   this->superBlock.rootInode = 0;
 
-  // initialize block bitmap
-  this->blockBitmap = std::vector<bool>(MAX_BLOCKS, false);
-  
-  // initialize inode bitmap
-  this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
-
   saveMetaData();
 }
 void FileSystem::loadMetaData() 
-{
+{ 
   this->diskFile.seekg(0);
   this->diskFile.read(reinterpret_cast<char*>(&this->superBlock), sizeof(SuperBlock));
 
-  // TODO: read block bitmap from disk
+  unpackInodeBitmap();
 }
 
 void FileSystem::saveMetaData()
@@ -95,6 +98,18 @@ void FileSystem::saveInodeBitmap()
   }
 
   this->diskFile.write(reinterpret_cast<const char*>(packedBitmap.data()), packedBitmap.size());
+}
+
+void FileSystem::unpackInodeBitmap()
+{
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
+  this->diskFile.read(reinterpret_cast<char*>(packedBitmap.data()), packedBitmap.size());
+
+  for (size_t i = 0; i < this->inodeBitmap.size(); ++i) {
+    size_t byteIndex = i / 8;
+    size_t bitIndex = i % 8;
+    this->inodeBitmap[i] = (packedBitmap[byteIndex] & (1 << bitIndex)) != 0;
+  }
 }
 
 bool FileSystem::createFile(const std::string fileName)
