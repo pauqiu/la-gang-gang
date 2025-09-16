@@ -84,7 +84,7 @@ void FileSystem::saveMetaData()
 
 void FileSystem::saveInodeBitmap()
 {
-  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, -1);
 
   for (size_t i = 0; i < inodeBitmap.size(); ++i) {
     if (inodeBitmap[i]) {
@@ -97,7 +97,7 @@ void FileSystem::saveInodeBitmap()
 
 void FileSystem::unpackInodeBitmap()
 {
-  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, -1);
   this->diskFile.read(reinterpret_cast<char*>(packedBitmap.data()), packedBitmap.size());
 
   for (size_t i = 0; i < this->inodeBitmap.size(); ++i) {
@@ -120,14 +120,51 @@ int FileSystem::allocateInode()
 void FileSystem::loadBlockBitmap() 
 {
   Inode node;
+
   for (int i = 1; i < TOTAL_INODES + 1; i++) {
+    // If the inode is not used, skip it
+    if (inodeBitmap[i] == -1) continue;
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
-    for (int j = 0; j < DIRECT_POINTERS; j++) {
-      if (node.directPointers[j] != -1) {
-        blockBitmap[node.directPointers[j]] = true;
-      }
+    
+    // Handling direct pointers
+    setBlockBitmap(node.directPointers, DIRECT_POINTERS);
+
+    // Handling indirect pointers
+    loadIndirectPointers(node.indirectPointer);
+
+    // Handling double indirect pointers
+    
+    
+  }
+}
+
+void FileSystem::loadIndirectPointers(int indexBlock)
+{
+  if (indexBlock != -1) {
+    this->blockBitmap[indexBlock] = true;
+    // Read index block and set bitmap
+    std::vector<int> pointers = readIndexBlock(indexBlock);
+    setBlockBitmap(pointers, POINTERS_PER_INDEX_BLOCK);
+    
+    loadDoubleIndirectPointers(pointers);
+  }
+}
+
+void FileSystem::loadDoubleIndirectPointers(std::vector<int> indexBlocks) 
+{
+  for (int i = 0; i < indexBlocks.size(); i++)
+    if (indexBlocks[i] != -1) {
+      std::vector<int> pointers = readIndexBlock(indexBlocks[i]);
+      setBlockBitmap(pointers, POINTERS_PER_INDEX_BLOCK);
     }
-  }  
+}
+
+void FileSystem::setBlockBitmap(std::vector<int> blocks, int size)
+{
+  for (int i = 0; i < size; i++) {
+    if (blocks[i] == -1) continue;
+    this->blockBitmap[blocks[i]] = true;
+  }
 }
 
 std::vector<int> FileSystem::readIndexBlock(int indexBlock)

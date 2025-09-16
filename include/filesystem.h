@@ -53,7 +53,7 @@ struct Inode
   int fileType; // 0 for file, 1 for directory
   int fileSize;
   char permissions[4];
-  int directPointers[DIRECT_POINTERS];
+  std::vector<int> directPointers {DIRECT_POINTERS, -1};
   int indirectPointer;
   int doubleIndirectPointer;
   bool isFree;
@@ -79,6 +79,9 @@ class FileSystem {
     void saveInodeBitmap();
     void unpackInodeBitmap();
     void loadBlockBitmap();
+    void loadIndirectPointers(int indexBlock);
+    void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
+    void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
     //int findFreeInode();
     //int findFreeBlock();
