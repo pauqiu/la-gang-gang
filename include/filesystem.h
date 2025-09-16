@@ -16,6 +16,7 @@
 #define DIRECT_POINTERS 12
 #define MAX_FILE_NAME 12
 #define INODE_TABLE_START 1
+#define POINTERS_PER_INDEX_BLOCK (BLOCK_SIZE / sizeof(int))
 #define DATA_BLOCK_START (INODE_TABLE_START + TOTAL_INODES)
 
 // --- STRUCTS ---
@@ -54,6 +55,7 @@ struct Inode
   char permissions[4];
   int directPointers[DIRECT_POINTERS];
   int indirectPointer;
+  int doubleIndirectPointer;
   bool isFree;
 };
 
@@ -76,6 +78,8 @@ class FileSystem {
     void saveMetaData();
     void saveInodeBitmap();
     void unpackInodeBitmap();
+    void loadBlockBitmap();
+    std::vector<int> readIndexBlock(int indexBlock);
     //int findFreeInode();
     //int findFreeBlock();
     //int allocateBlock();

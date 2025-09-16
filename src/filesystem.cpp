@@ -117,6 +117,28 @@ int FileSystem::allocateInode()
   return -1;
 }
 
+void FileSystem::loadBlockBitmap() 
+{
+  Inode node;
+  for (int i = 1; i < TOTAL_INODES + 1; i++) {
+    this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
+    for (int j = 0; j < DIRECT_POINTERS; j++) {
+      if (node.directPointers[j] != -1) {
+        blockBitmap[node.directPointers[j]] = true;
+      }
+    }
+  }  
+}
+
+std::vector<int> FileSystem::readIndexBlock(int indexBlock)
+{
+  std::vector<int> pointers = std::vector<int>(POINTERS_PER_INDEX_BLOCK, -1);
+  
+  this->diskFile.seekg(indexBlock * BLOCK_SIZE);
+  this->diskFile.read(reinterpret_cast<char*>(&pointers), sizeof(pointers));
+  return pointers;
+}
+
 bool FileSystem::createFile(const std::string fileName)
 {
   int freeInode = -1;
