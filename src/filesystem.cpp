@@ -6,7 +6,7 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
 {
   // Initialize the superblock and bitmaps.
   this->superBlock = {};
-  this->blockBitmap = std::vector<bool>(MAX_BLOCKS, false);
+  this->blockBitmap = std::vector<bool>(MAX_DATA_BLOCKS, false);
   this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
   
   // Check if the disk file already exists.
@@ -17,10 +17,6 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
     initializeDisk();
   } else {
     loadMetaData();
-    std::cout << this->superBlock.magicNumber << std::endl;
-    std::cout << this->superBlock.totalBlocks << std::endl;
-    std::cout << this->superBlock.rootInode << std::endl;
-    std::cout << this->inodeBitmap.size() << std::endl;
     std::cout << "Disk loaded successfully." << std::endl;
   }
    
@@ -59,7 +55,6 @@ void FileSystem::initializeDisk()
 
 void FileSystem::setMetaData()
 {
-
   this->superBlock.magicNumber = 0xACBD0005;
   this->superBlock.totalBlocks = MAX_BLOCKS;
   this->superBlock.rootInode = 0;
@@ -110,6 +105,16 @@ void FileSystem::unpackInodeBitmap()
     size_t bitIndex = i % 8;
     this->inodeBitmap[i] = (packedBitmap[byteIndex] & (1 << bitIndex)) != 0;
   }
+}
+int FileSystem::allocateInode()
+{
+  for (int i = 0; i < inodeBitmap.size(); i++) {
+    if (!inodeBitmap[i]) {
+      inodeBitmap[i] = true;
+      return i;
+    }
+  }
+  return -1;
 }
 
 bool FileSystem::createFile(const std::string fileName)
