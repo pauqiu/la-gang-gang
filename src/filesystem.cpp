@@ -10,6 +10,8 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
   if (!this->diskFile.is_open()) {
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
     initializeDisk();
+  } else {
+    loadMetaData();
   }
    
 }
@@ -61,6 +63,13 @@ void FileSystem::setMetaData()
 
   saveMetaData();
 }
+void FileSystem::loadMetaData() 
+{
+  this->diskFile.seekg(0);
+  this->diskFile.read(reinterpret_cast<char*>(&this->superBlock), sizeof(SuperBlock));
+
+  // TODO: read block bitmap from disk
+}
 
 void FileSystem::saveMetaData()
 {
@@ -69,7 +78,23 @@ void FileSystem::saveMetaData()
   // write superblock
   this->diskFile.seekp(0);
   this->diskFile.write(reinterpret_cast<const char*>(&this->superBlock), sizeof(SuperBlock));
+
+  // write inode bitmap
+  saveInodeBitmap();
   
+}
+
+void FileSystem::saveInodeBitmap()
+{
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
+
+  for (size_t i = 0; i < inodeBitmap.size(); ++i) {
+    if (inodeBitmap[i]) {
+      packedBitmap[i / 8] |= (1 << (i % 8));
+    }
+  }
+
+  this->diskFile.write(reinterpret_cast<const char*>(packedBitmap.data()), packedBitmap.size());
 }
 
 bool FileSystem::createFile(const std::string fileName)

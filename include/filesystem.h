@@ -14,6 +14,8 @@
 #define TOTAL_INODES 512
 #define DIRECT_POINTERS 12
 #define MAX_FILE_NAME 12
+#define INODE_TABLE_START 1
+#define DATA_BLOCK_START (INODE_TABLE_START + TOTAL_INODES)
 
 // --- STRUCTS ---
 
@@ -71,6 +73,7 @@ class FileSystem {
     void setMetaData();
     void loadMetaData();
     void saveMetaData();
+    void saveInodeBitmap();
     //int findFreeInode();
     //int findFreeBlock();
     //int allocateBlock();
