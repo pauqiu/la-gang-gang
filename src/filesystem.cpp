@@ -61,12 +61,15 @@ void FileSystem::setMetaData()
 
   saveMetaData();
 }
+
 void FileSystem::loadMetaData() 
 { 
   this->diskFile.seekg(0);
   this->diskFile.read(reinterpret_cast<char*>(&this->superBlock), sizeof(SuperBlock));
 
   unpackInodeBitmap();
+
+  loadBlockBitmap();
 }
 
 void FileSystem::saveMetaData()
@@ -84,7 +87,7 @@ void FileSystem::saveMetaData()
 
 void FileSystem::saveInodeBitmap()
 {
-  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, -1);
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
 
   for (size_t i = 0; i < inodeBitmap.size(); ++i) {
     if (inodeBitmap[i]) {
@@ -97,7 +100,7 @@ void FileSystem::saveInodeBitmap()
 
 void FileSystem::unpackInodeBitmap()
 {
-  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, -1);
+  std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
   this->diskFile.read(reinterpret_cast<char*>(packedBitmap.data()), packedBitmap.size());
 
   for (size_t i = 0; i < this->inodeBitmap.size(); ++i) {
@@ -106,6 +109,7 @@ void FileSystem::unpackInodeBitmap()
     this->inodeBitmap[i] = (packedBitmap[byteIndex] & (1 << bitIndex)) != 0;
   }
 }
+
 int FileSystem::allocateInode()
 {
   for (int i = 0; i < inodeBitmap.size(); i++) {
@@ -123,18 +127,14 @@ void FileSystem::loadBlockBitmap()
 
   for (int i = 1; i < TOTAL_INODES + 1; i++) {
     // If the inode is not used, skip it
-    if (inodeBitmap[i] == -1) continue;
+    if (this->inodeBitmap[i] == false) continue;
+    std::cout << this->inodeBitmap[1] << std::endl;
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
-    
     // Handling direct pointers
     setBlockBitmap(node.directPointers, DIRECT_POINTERS);
 
     // Handling indirect pointers
     loadIndirectPointers(node.indirectPointer);
-
-    // Handling double indirect pointers
-    
-    
   }
 }
 
@@ -171,7 +171,7 @@ std::vector<int> FileSystem::readIndexBlock(int indexBlock)
 {
   std::vector<int> pointers = std::vector<int>(POINTERS_PER_INDEX_BLOCK, -1);
   
-  this->diskFile.seekg(indexBlock * BLOCK_SIZE);
+  this->diskFile.seekg((DATA_BLOCK_START + indexBlock) * BLOCK_SIZE);
   this->diskFile.read(reinterpret_cast<char*>(&pointers), sizeof(pointers));
   return pointers;
 }
