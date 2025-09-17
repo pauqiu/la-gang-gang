@@ -190,12 +190,28 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
   this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
   this->diskFile.flush();
 }
-void readInode(int inodeIndex, Inode& inode)
+void FileSystem::readInode(int inodeIndex, Inode& inode)
 {
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekg(offset);
   this->diskFile.read(reinterpret_cast<char*>(&inode), sizeof(Inode));
 }
+
+void FileSystem::readBlock(int blockIndex, void* content) 
+{
+  long offset = (DATA_BLOCK_START + blockIndex) * BLOCK_SIZE;
+  this->diskFile.seekg(offset);
+  this->diskFile.read(reinterpret_cast<char*>(&content), BLOCK_SIZE);
+}
+void FileSystem::writeBlock(int blockIndex, void* content)
+{
+  long offset = (DATA_BLOCK_START + blockIndex) * BLOCK_SIZE;
+  this->diskFile.seekp(offset);
+  this->diskFile.write(reinterpret_cast<const char*>(content), BLOCK_SIZE);
+  this->diskFile.flush();
+}
+
+
 bool FileSystem::createFile(const std::string fileName)
 {
   int newInode = allocateInode(0);
@@ -238,7 +254,23 @@ bool FileSystem::createDirectory(const std::string dirName)
 }
 int FileSystem::findInDirectory(int inode, const std::string name)
 {
-  Inode dirInode = readInode(inode);
+  Inode dirInode;
+  readInode(inode, dirInode);
+  
+  if (dirInode.fileType != 1) return -1;  // Not a directory
+  if (dirInode.directPointers[0] == -1) return -1;  // Directory is empty
+
+  DataBlock block;
+  readBlock(dirInode.directPointers[0], &block);
+
+  dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
+  int numEntries = BLOCK_SIZE / sizeof(dirEntry);
+  for (int i = 0; i < numEntries; i++) {
+    if (entries[i].name == name) {
+      return entries[i].inode;
+    }
+  }
+  return -1;
 }
 bool FileSystem::changeDirectory(const std::string dirName)
 {

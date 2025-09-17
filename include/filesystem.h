@@ -101,9 +101,9 @@ class FileSystem {
     //int allocateBlock();
     void readInode(int inodeIndex, Inode& inode);
     int allocateInode(int type);
+    void readBlock(int blockIndex, void* content);
+    void writeBlock(int blockIndex, void* content);
     //void deallocateBlock(int blockIndex);
-    //void writeBlock(int blockIndex, const std::string content);
-    //std::string readBlock(int blockIndex);
 
     // directory methods
     bool createDirectory(const std::string dirName);
