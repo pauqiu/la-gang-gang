@@ -97,20 +97,20 @@ class FileSystem {
     std::vector<int> readIndexBlock(int indexBlock);
     void writeInode(int inodeIndex, Inode& inode);
     //int findFreeInode();
-    //int findFreeBlock();
-    //int allocateBlock();
+    int findFreeBlock();
+    int allocateBlock();
     void readInode(int inodeIndex, Inode& inode);
     int allocateInode(int type);
     void readBlock(int blockIndex, void* content);
     void writeBlock(int blockIndex, void* content);
-    //void deallocateBlock(int blockIndex);
+    void deallocateBlock(int blockIndex);
+    void deallocateInode(int inodeIndex);
 
     // directory methods
     bool createDirectory(const std::string dirName);
     int findInDirectory(int inode, const std::string name);
     bool changeDirectory(const std::string dirName);
     bool addToDirectory(int inode, const std::string name, int newInode);
-
 
   public:
     FileSystem(std::string diskName);

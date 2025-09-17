@@ -190,6 +190,24 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
   this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
   this->diskFile.flush();
 }
+
+int FileSystem::findFreeBlock() {
+  for (int i = 0; i < MAX_DATA_BLOCKS; i++) {
+    if (!blockBitmap[i]) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int FileSystem::allocateBlock() {
+  int block = findFreeBlock();
+  if (block != -1) {
+    blockBitmap[block] = true;
+  }
+  return block;
+}
+
 void FileSystem::readInode(int inodeIndex, Inode& inode)
 {
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
@@ -211,6 +229,17 @@ void FileSystem::writeBlock(int blockIndex, void* content)
   this->diskFile.flush();
 }
 
+void FileSystem::deallocateBlock(int blockIndex) {
+  if (blockIndex >= 0 && blockIndex < MAX_DATA_BLOCKS) {
+    blockBitmap[blockIndex] = false;
+  }
+}
+
+void FileSystem::deallocateInode(int inodeIndex) {
+  if (inodeIndex >= 0 && inodeIndex < TOTAL_INODES) {
+    inodeBitmap[inodeIndex] = false;
+  }
+}
 
 bool FileSystem::createFile(const std::string fileName)
 {
