@@ -33,6 +33,12 @@ struct dirEntry
 {
   char name[MAX_FILE_NAME];
   int inode;
+
+  dirEntry() 
+  {
+    memset(name, 0, MAX_FILE_NAME);
+    inode = -1;
+  }
 };
 
 // Data of the file
@@ -83,6 +89,7 @@ class FileSystem {
     void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
     void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
+    void writeInode(int inodeIndex, Inode& inode);
     //int findFreeInode();
     //int findFreeBlock();
     //int allocateBlock();

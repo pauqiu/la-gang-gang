@@ -115,8 +115,16 @@ int FileSystem::allocateInode()
   for (int i = 0; i < inodeBitmap.size(); i++) {
     if (!inodeBitmap[i]) {
       inodeBitmap[i] = true;
+      Inode inode;
+      inode.id = i;
+      inode.fileSize = 0;
+      inode.fileType = 0;
+      inode.isFree = false;
+      memset(inode.directPointers, -1, sizeof(inode.directPointers));  // initialize direct pointers to -1
+      writeInode(i, inode);  // save inode to disk
       return i;
     }
+    
   }
   return -1;
 }
@@ -175,29 +183,23 @@ std::vector<int> FileSystem::readIndexBlock(int indexBlock)
   this->diskFile.read(reinterpret_cast<char*>(&pointers), sizeof(pointers));
   return pointers;
 }
-
+void FileSystem::writeInode(int inodeIndex, Inode& inode) 
+{ 
+  std::streampos inodePosition = INODE_TABLE_START + inodeIndex * sizeof(Inode);
+  this->diskFile.seekp(inodePosition);
+  this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
+  this->diskFile.flush();
+}
 bool FileSystem::createFile(const std::string fileName)
 {
-  int freeInode = -1;
-  for (int i = 0; i < inodeBitmap.size(); i++) 
+  int newInode = allocateInode();
+  if (newInode == -1)
   {
-    if (!inodeBitmap[i])
-    {
-      freeInode = i;
-      inodeBitmap[i] = true;
-      break;
-    }
+    std::cerr << "No hay espacio para crear el archivo." << std::endl;
+    return false;  
   }
-  if (freeInode == -1) return false;  // no free inode
 
-  //  initialize inode
-  Inode node;
-  node.id = freeInode;
-  node.fileSize = 0;
-  node.fileType = 1;  // file
-
-  //  ... guardar en el disco
-
+  std::cout << "Archivo creado (inodo" << newInode << ")" << std::endl;
   return true;
 }
 
