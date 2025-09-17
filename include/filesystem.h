@@ -54,7 +54,7 @@ struct DataBlock
   DataBlock() {
       memset(data, 0, BLOCK_SIZE);
   }
-  
+
 };
 
 // File Control Block
@@ -93,6 +93,8 @@ class FileSystem {
     void loadBlockBitmap();
     void loadIndirectPointers(int indexBlock);
     void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
+    void readFromIndirectPointer(int indexBlock, int& remainingBytes);
+    void readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
     void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
     void writeInode(int inodeIndex, Inode& inode);
@@ -119,7 +121,7 @@ class FileSystem {
     void deleteFile(const std::string fileName);
     void readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
-  
+
 };
 
 #endif // FILESYSTEM_H
