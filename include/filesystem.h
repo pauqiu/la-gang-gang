@@ -80,6 +80,7 @@ class FileSystem {
     SuperBlock superBlock;
     std::vector<bool> inodeBitmap;
     std::vector<bool> blockBitmap;
+    int currentDirectory;  // inode of the current directory
 
   // Methods
   private:
@@ -98,14 +99,15 @@ class FileSystem {
     //int findFreeInode();
     //int findFreeBlock();
     //int allocateBlock();
-    int allocateInode();
+    void readInode(int inodeIndex, Inode& inode);
+    int allocateInode(int type);
     //void deallocateBlock(int blockIndex);
     //void writeBlock(int blockIndex, const std::string content);
     //std::string readBlock(int blockIndex);
 
     // directory methods
     bool createDirectory(const std::string dirName);
-    bool findInDirectory(int inode, const std::string name);
+    int findInDirectory(int inode, const std::string name);
     bool changeDirectory(const std::string dirName);
     bool addToDirectory(int inode, const std::string name, int newInode);
 

@@ -110,7 +110,7 @@ void FileSystem::unpackInodeBitmap()
   }
 }
 
-int FileSystem::allocateInode()
+int FileSystem::allocateInode(int type)
 {
   for (int i = 0; i < inodeBitmap.size(); i++) {
     if (!inodeBitmap[i]) {
@@ -118,7 +118,7 @@ int FileSystem::allocateInode()
       Inode inode;
       inode.id = i;
       inode.fileSize = 0;
-      inode.fileType = 0;
+      inode.fileType = type;
       inode.isFree = false;
       inode.directPointers = std::vector<int>(DIRECT_POINTERS, -1);
       writeInode(i, inode);  // save inode to disk
@@ -185,14 +185,20 @@ std::vector<int> FileSystem::readIndexBlock(int indexBlock)
 }
 void FileSystem::writeInode(int inodeIndex, Inode& inode) 
 { 
-  std::streampos inodePosition = INODE_TABLE_START + inodeIndex * sizeof(Inode);
-  this->diskFile.seekp(inodePosition);
+  long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
+  this->diskFile.seekp(offset);
   this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
   this->diskFile.flush();
 }
+void readInode(int inodeIndex, Inode& inode)
+{
+  long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
+  this->diskFile.seekg(offset);
+  this->diskFile.read(reinterpret_cast<char*>(&inode), sizeof(Inode));
+}
 bool FileSystem::createFile(const std::string fileName)
 {
-  int newInode = allocateInode();
+  int newInode = allocateInode(0);
   if (newInode == -1)
   {
     std::cerr << "No hay espacio para crear el archivo." << std::endl;
@@ -222,11 +228,17 @@ void FileSystem::writeFile(const std::string fileName, const std::string content
 
 bool FileSystem::createDirectory(const std::string dirName) 
 {
+  // Allocate a new inode for the directory
+  int newInode = allocateInode(1);
+  if (newInode == -1) return false;
   
+  // Add the new directory to the current directory
+  bool success = addToDirectory(this->currentDirectory, dirName, newInode);
+  return success;
 }
-bool FileSystem::findInDirectory(int inode, const std::string name)
+int FileSystem::findInDirectory(int inode, const std::string name)
 {
-
+  Inode dirInode = readInode(inode);
 }
 bool FileSystem::changeDirectory(const std::string dirName)
 {
