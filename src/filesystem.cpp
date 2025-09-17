@@ -120,7 +120,7 @@ int FileSystem::allocateInode()
       inode.fileSize = 0;
       inode.fileType = 0;
       inode.isFree = false;
-      memset(inode.directPointers, -1, sizeof(inode.directPointers));  // initialize direct pointers to -1
+      inode.directPointers = std::vector<int>(DIRECT_POINTERS, -1);
       writeInode(i, inode);  // save inode to disk
       return i;
     }
@@ -216,4 +216,23 @@ void FileSystem::readFile(const std::string fileName)
 void FileSystem::writeFile(const std::string fileName, const std::string content)
 {
   
+}
+
+// directory methods
+
+bool FileSystem::createDirectory(const std::string dirName) 
+{
+  
+}
+bool FileSystem::findInDirectory(int inode, const std::string name)
+{
+
+}
+bool FileSystem::changeDirectory(const std::string dirName)
+{
+
+}
+bool FileSystem::addToDirectory(int inode, const std::string name, int newInode)
+{
+
 }

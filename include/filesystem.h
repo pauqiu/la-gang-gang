@@ -39,6 +39,11 @@ struct dirEntry
     memset(name, 0, MAX_FILE_NAME);
     inode = -1;
   }
+  dirEntry(const char* name, int inode)
+  {
+    strncpy(this->name, name, MAX_FILE_NAME - 1);
+    this->inode = inode;
+  }
 };
 
 // Data of the file
@@ -97,6 +102,13 @@ class FileSystem {
     //void deallocateBlock(int blockIndex);
     //void writeBlock(int blockIndex, const std::string content);
     //std::string readBlock(int blockIndex);
+
+    // directory methods
+    bool createDirectory(const std::string dirName);
+    bool findInDirectory(int inode, const std::string name);
+    bool changeDirectory(const std::string dirName);
+    bool addToDirectory(int inode, const std::string name, int newInode);
+
 
   public:
     FileSystem(std::string diskName);
