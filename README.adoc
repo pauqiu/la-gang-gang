@@ -1,0 +1,36 @@
+= La Gang Gang: Proyecto Integrador de Sistemas Operativos y Redes de Comunicación de Datos
+:experimental:
+:nofooter:
+:source-highlighter: pygments
+:sectnums:
+:stem: latexmath
+:toc: auto
+:toclevels: 1
+:xrefstyle: short
+
+== Repositorio
+Repositorio grupal del equipo _La Gang Gang_ para el *Proyecto Integrador de Sistemas Operativos y Redes de Comunicación de Datos*, CI-0123, grupo 5.
+
+== Proyecto
+=== Descripción general
+El equipo planea crear un sistema de seguridad distribuido, diseñado para la monitorización en tiempo real de centros de eventos. Desarrollado en C++, la arquitectura consiste de nodos redundantes y sensores IoT para proteger infraestructura, gestionar aforo y generar informes relevantes para el negocio.
+
+== Créditos
+*Universidad de Costa Rica* +
+*Ciudad Universitaria Rodrigo Facio Brenes*
+
+*CI-0123 - Proyecto Integrador de Sistemas Operativos y Redes de Comunicación de Datos*
+
+.*Docentes*
+* Maeva Murcia
+* Ricardo Gang
+
+*Nombre de equipo:* La Gang Gang
+
+.*Conformado por los estudiantes:*
+* Jose Gabriel Granados Duarte C33468
+* Dylan Torres Gaitan C27796
+* Amber Villarreal Campos C28481
+* Paulette Zamora Hernández C38632
+
+Grupo 5, II Semestre, 2025
