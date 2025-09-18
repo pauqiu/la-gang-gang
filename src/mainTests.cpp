@@ -2,30 +2,35 @@
 #include <iostream>
 
 int main() {
-    // Step 1: Initialize the FileSystem with a new disk name
     FileSystem fs("disk.bin");
-
-    std::cout << "\n--- Creating File ---\n";
+    
+    std::cout << "=== Testing File Creation ===\n";
+    
+    // First, let's see what's in the root directory
+    std::cout << "=== Listing root directory ===\n";
+    // You might want to add a listDirectory() method
+    
+    // Try to create a file
     if (fs.createFile("test.txt")) {
-        std::cout << "File 'test.txt' created successfully.\n";
+        std::cout << "File created successfully\n";
+        
+        // List directory again to see if file appears
+        std::cout << "=== Directory after creation ===\n";
+        
+        // Try to write to it
+        std::string content = "Hello, this is file content!";
+        fs.writeFile("test.txt", content);
+        
+        // Try to read it
+        std::cout << "File content: ";
+        fs.readFile("test.txt");
+        std::cout << std::endl;
+        
+        // Clean up
+        fs.deleteFile("test.txt");
+        
     } else {
-        std::cout << "Failed to create 'test.txt'.\n";
+        std::cout << "Failed to create file\n";
     }
-
-    /*std::cout << "\n--- Creating Directory ---\n";
-    if (fs.createDirectory("myDir")) {
-        std::cout << "Directory 'myDir' created successfully.\n";
-    } else {
-        std::cout << "Failed to create 'myDir'.\n";
-    }*/
-
-    std::cout << "\n--- Attempting to Read 'nonexistent.txt' ---\n";
-    fs.readFile("nonexistent.txt");
-
-    std::cout << "\n--- Deleting 'test.txt' ---\n";
-    fs.deleteFile("test.txt");
-
-    std::cout << "\n--- Done ---\n";
-
     return 0;
 }

@@ -1,6 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -127,6 +128,11 @@ class FileSystem {
     int allocateInode(int type);
     void readBlock(int blockIndex, void* content);
     void writeBlock(int blockIndex, void* content);
+    std::vector<int> getAllocatedBlocks(int inodeIndex);
+    int findBlockForOffset(Inode& inode, int offset);
+    int allocateBlockForInode(Inode& inode, int blockIndexInFile);
+    void writeIndirectBlock(int indirectBlock, std::vector<int>& pointers);
+    void updateFileSize(int inodeIndex, int newSize);
     void deallocateBlock(int blockIndex);
     void deallocateInode(int inodeIndex);
     void deallocateIndirectPointer(int indexBlock);
