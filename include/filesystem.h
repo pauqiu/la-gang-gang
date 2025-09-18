@@ -46,6 +46,11 @@ struct dirEntry
   }
 };
 
+struct Directory 
+{
+  std::vector<dirEntry> entries;
+};
+
 // Data of the file
 struct DataBlock
 {

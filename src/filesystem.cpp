@@ -303,9 +303,9 @@ int FileSystem::findInDirectory(int inode, const std::string name)
 }
 bool FileSystem::changeDirectory(const std::string dirName)
 {
-
+  return false;
 }
 bool FileSystem::addToDirectory(int inode, const std::string name, int newInode)
 {
-
+  return false;
 }
