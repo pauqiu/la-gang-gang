@@ -100,6 +100,7 @@ void FileSystem::setMetaData()
 
     this->currentDirectoryInode = rootsInode;
     this->superBlock.rootInode = rootsInode;
+    saveMetaData();
 }
 
 void FileSystem::loadMetaData() 
@@ -122,8 +123,6 @@ void FileSystem::loadMetaData()
 
 void FileSystem::saveMetaData()
 {
-  this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
-
   // write superblock
   this->diskFile.seekp(0);
   this->diskFile.write(reinterpret_cast<const char*>(&this->superBlock), sizeof(SuperBlock));
@@ -187,8 +186,6 @@ void FileSystem::loadBlockBitmap()
   for (int i = 0; i < TOTAL_INODES; i++) {
     // If the inode is not used, skip it
     if (this->inodeBitmap[i] == false) continue;
-
-    std::cout << "Inode " << i << " is used" << std::endl;
 
     this->diskFile.seekg((INODE_TABLE_START + i) * BLOCK_SIZE);
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
@@ -441,9 +438,9 @@ bool FileSystem::createFile(const std::string fileName)
     std::cerr << "No hay espacio para crear el archivo." << std::endl;
     return false;  
   }
-
+  
   // Add file to current directory
-  if (addToDirectory(currentDirectoryInode, fileName, newInode)) {
+  if (addToDirectory(this->currentDirectoryInode, fileName, newInode)) {
     std::cout << "Archivo creado (inodo" << newInode << ")" << std::endl;
     return true;
   } else {

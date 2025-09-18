@@ -27,7 +27,7 @@ int main() {
         std::cout << std::endl;
 
         // Clean up
-        fs.deleteFile("test.txt");
+        /*fs.deleteFile("test.txt");*/
 
     } else {
         std::cout << "Failed to create file\n";
