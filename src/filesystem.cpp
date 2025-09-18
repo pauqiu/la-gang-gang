@@ -92,8 +92,6 @@ void FileSystem::initializeDisk()
     writeInode(0, rootInode);
 
     saveMetaData();
-
-    this->diskFile.close();
   }
 
   std::cout << "Disk created successfully." << std::endl;
@@ -425,6 +423,11 @@ void FileSystem::markInodeAsFree(int inodeIndex, Inode& inode)
 
 bool FileSystem::createFile(const std::string fileName)
 {
+  if (fileName.length() >= MAX_FILE_NAME) {
+    std::cerr << "Error: Filename too long. Maximum is " << (MAX_FILE_NAME - 1) << " characters." << std::endl;
+    return false;
+  }
+  std::cout << "DEBUG: Creating file: '" << fileName << "' (length: " << fileName.length() << ")" << std::endl;
   int newInode = allocateInode(0);
   if (newInode == -1)
   {
@@ -484,10 +487,12 @@ void FileSystem::readFile(const std::string fileName)
 }
 
 void FileSystem::writeFile(const std::string fileName, const std::string content) {
+  std::cout << "DEBUG: writeFile searching for: '" << fileName << "'" << std::endl;
   // Search for the file in the current directory
   int fileInodeIndex = findInDirectory(currentDirectory, fileName);
   if (fileInodeIndex == -1) {
-    std::cerr << "Archivo no encontrado: " << fileName << std::endl;
+    std::cerr << "DEBUG: Archivo no encontrado: " << fileName << std::endl;
+    std::cerr << "DEBUG: Current directory inode: " << currentDirectory << std::endl;
     return;
   }
 
@@ -507,6 +512,7 @@ void FileSystem::writeFile(const std::string fileName, const std::string content
     std::vector<int> allocatedBlocks = getAllocatedBlocks(fileInodeIndex);
     for (int i = blocksNeeded; i < allocatedBlocks.size(); i++) {
       deallocateBlock(allocatedBlocks[i]);
+      fileInode.directPointers[i] = -1; // Clear the pointer
     }
   }
 
@@ -515,30 +521,36 @@ void FileSystem::writeFile(const std::string fileName, const std::string content
   for (int blockIndex = 0; blockIndex < blocksNeeded; blockIndex++) {
     int currentBlockPointer = -1;
 
-    // Obtener o asignar bloque
+    // Get or allocate block
     if (blockIndex < DIRECT_POINTERS) {
       currentBlockPointer = fileInode.directPointers[blockIndex];
+      
+      // Always allocate a new block for writing
       if (currentBlockPointer == -1) {
-        currentBlockPointer = allocateBlockForInode(fileInode, blockIndex);
+        currentBlockPointer = allocateBlock();
         if (currentBlockPointer == -1) {
-          std::cerr << "Error: No hay bloques disponibles" << std::endl;
+          std::cerr << "Error: No blocks available" << std::endl;
           break;
         }
+        fileInode.directPointers[blockIndex] = currentBlockPointer;
+        // Save the updated inode immediately
+        writeInode(fileInodeIndex, fileInode);
       }
     }
     else {
-      // TODO: Implementar para punteros indirectos
-      std::cerr << "Error: Archivo demasiado grande para punteros directos" << std::endl;
+      // TODO: Implement indirect pointers
+      std::cerr << "Error: File too large for direct pointers" << std::endl;
       break;
     }
 
-    // Analize what part of the content to write in this block
+    // Analyze what part of the content to write in this block
     int blockOffset = blockIndex * BLOCK_SIZE;
     int bytesToWrite = std::min(BLOCK_SIZE, contentSize - blockOffset);
 
     if (bytesToWrite > 0) {
       DataBlock block;
       std::memcpy(block.data, content.data() + blockOffset, bytesToWrite);
+      std::cout << "DEBUG: Writing to block " << currentBlockPointer << " for file block " << blockIndex << std::endl;
       writeBlock(currentBlockPointer, &block);
       bytesWritten += bytesToWrite;
     }
@@ -548,7 +560,7 @@ void FileSystem::writeFile(const std::string fileName, const std::string content
   fileInode.fileSize = contentSize;
   writeInode(fileInodeIndex, fileInode);
 
-  std::cout << "Escritos " << bytesWritten << " bytes en " << fileName << std::endl;
+  std::cout << "Written " << bytesWritten << " bytes to " << fileName << std::endl;
 }
 
 std::vector<int> FileSystem::getAllocatedBlocks(int inodeIndex) {
@@ -582,6 +594,7 @@ int FileSystem::allocateBlockForInode(Inode& inode, int blockIndexInFile) {
 
   if (blockIndexInFile < DIRECT_POINTERS) {
     inode.directPointers[blockIndexInFile] = newBlock;
+    writeInode(inode.id, inode);
   } else {
     // TODO: Implementar para punteros indirectos
     deallocateBlock(newBlock);
@@ -646,7 +659,12 @@ int FileSystem::findInDirectory(int inode, const std::string name)
     if (entries[i].inode != -1) {
       std::cout << "DEBUG: Entry " << i << ": '" << entries[i].name << "' -> inode " << entries[i].inode << std::endl;
     }
-    if (strcmp(entries[i].name, name.c_str()) == 0) {
+    // Check if the inode actually exists
+    if (entries[i].inode >= TOTAL_INODES) {
+      std::cerr << "DEBUG: Invalid inode number: " << entries[i].inode << std::endl;
+      continue;
+    }
+    if (strncmp(entries[i].name, name.c_str(), MAX_FILE_NAME) == 0) {
       return entries[i].inode;
     }
   }
@@ -676,7 +694,11 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
 {
   Inode dirInode;
   readInode(dirInodeIndex, dirInode);
-  
+
+  std::cout << "DEBUG: Directory inode " << dirInodeIndex 
+    << ", type: " << dirInode.fileType 
+    << ", isFree: " << dirInode.isFree << std::endl;
+
   if (dirInode.fileType != 1) {
     // DEBUG
     std::cerr << "Error: Not a directory (inode " << dirInodeIndex << ")" << std::endl;
@@ -705,7 +727,7 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
     dirEntry* newEntries = reinterpret_cast<dirEntry*>(block.data);
     for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
       newEntries[i].inode = -1;
-      newEntries[i].name[0] = '\0';
+      memset(newEntries[i].name, 0, MAX_FILE_NAME);
     }
   } else {
     std::cout << "Reading existing directory block: " << dirInode.directPointers[0] << std::endl;
@@ -719,7 +741,7 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
   for (int i = 0; i < numEntries; i++) {
     if (entries[i].inode == -1) {
       std::cout << "Found empty slot at position " << i << std::endl;
-      strncpy(entries[i].name, name.c_str(), MAX_FILE_NAME - 1);
+      strncpy(entries[i].name, name.c_str(), MAX_FILE_NAME -  1);
       entries[i].name[MAX_FILE_NAME - 1] = '\0';
       entries[i].inode = newInode;
       writeBlock(dirInode.directPointers[0], &block);
