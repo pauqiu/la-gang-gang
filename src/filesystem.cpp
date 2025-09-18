@@ -2,13 +2,13 @@
 
 #include <iostream>
 
-FileSystem::FileSystem(std::string diskName) : diskName(diskName)
+FileSystem::FileSystem(std::string diskName) : diskName(diskName), rootDirectory(0)
 {
   // Initialize the superblock and bitmaps.
   this->superBlock = {};
   this->blockBitmap = std::vector<bool>(MAX_DATA_BLOCKS, false);
   this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
-  
+
   // Check if the disk file already exists.
   this->diskFile.open(diskName, std::ios::in | std::ios::out | std::ios::binary);
 
@@ -16,7 +16,7 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
     this->diskFile.close();
     this->diskFile.clear();
-    
+
     initializeDisk();
   } else {
     loadMetaData();
@@ -305,7 +305,7 @@ void FileSystem::readInode(int inodeIndex, Inode& inode)
   this->diskFile.read(reinterpret_cast<char*>(&inode.isFree), sizeof(inode.isFree));
   
   // Read direct pointers
-  inode.directPointers.resize(DIRECT_POINTERS);
+  // inode.directPointers.resize(DIRECT_POINTERS);
   for (int i = 0; i < DIRECT_POINTERS; i++) {
       this->diskFile.read(reinterpret_cast<char*>(&inode.directPointers[i]), sizeof(int));
   }
@@ -411,7 +411,7 @@ bool FileSystem::createFile(const std::string fileName)
   }
   
   // Add file to current directory
-  if (addToDirectory(currentDirectory, fileName, newInode)) {
+  if (addToDirectory(currentDirectoryInode, fileName, newInode)) {
     std::cout << "Archivo creado (inodo" << newInode << ")" << std::endl;
     return true;
   } else {
@@ -467,10 +467,10 @@ void FileSystem::readFile(const std::string fileName)
 void FileSystem::writeFile(const std::string fileName, const std::string content) {
   std::cout << "DEBUG: writeFile searching for: '" << fileName << "'" << std::endl;
   // Search for the file in the current directory
-  int fileInodeIndex = findInDirectory(currentDirectory, fileName);
+  int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
   if (fileInodeIndex == -1) {
     std::cerr << "DEBUG: Archivo no encontrado: " << fileName << std::endl;
-    std::cerr << "DEBUG: Current directory inode: " << currentDirectory << std::endl;
+    std::cerr << "DEBUG: Current directory inode: " << currentDirectoryInode << std::endl;
     return;
   }
 
@@ -734,7 +734,7 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
 
 bool FileSystem::changeDirectory(const std::string dirName)
 {
-  int targetInode = findInDirectory(currentDirectory, dirName);
+  int targetInode = findInDirectory(currentDirectoryInode, dirName);
   if (targetInode == -1) {
     std::cout << "Directory not found: " << dirName << std::endl;
     return false;
@@ -748,6 +748,6 @@ bool FileSystem::changeDirectory(const std::string dirName)
     return false;
   }
   
-  currentDirectory = targetInode;
+  currentDirectoryInode = targetInode;
   return true;
 }
