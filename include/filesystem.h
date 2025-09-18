@@ -80,6 +80,7 @@ class FileSystem {
     SuperBlock superBlock;
     std::vector<bool> inodeBitmap;
     std::vector<bool> blockBitmap;
+    std::vector<Directory> directories;
     int currentDirectory;  // inode of the current directory
 
   // Methods
