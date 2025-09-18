@@ -14,12 +14,12 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
 
   if (!this->diskFile.is_open()) {
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
+    this->diskFile.close();
+    this->diskFile.clear();
+    
     initializeDisk();
-    // Initialize root directory
-    currentDirectory = 0; // Root directory is inode 0
   } else {
     loadMetaData();
-    currentDirectory = superBlock.rootInode; // Set to root directory
     std::cout << "Disk loaded successfully." << std::endl;
   }
 }
@@ -48,50 +48,6 @@ void FileSystem::initializeDisk()
     newDiskFile.close();
 
     setMetaData();
-
-    this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
-    
-    // Create root inode
-    Inode rootInode;
-    rootInode.id = 0;
-    rootInode.fileType = 1; // Directory
-    rootInode.fileSize = 0;
-    rootInode.isFree = false;
-    rootInode.directPointers = std::vector<int>(DIRECT_POINTERS, -1);
-    rootInode.indirectPointer = -1;
-    rootInode.doubleIndirectPointer = -1;
-
-    // Allocate first data block for root directory
-    int rootBlockIndex = allocateBlock();
-    if (rootBlockIndex != -1) {
-      rootInode.directPointers[0] = rootBlockIndex;
-      
-      // Initialize the directory block with empty entries
-      DataBlock rootBlock;
-      memset(&rootBlock, 0, BLOCK_SIZE);
-
-      dirEntry* entries = reinterpret_cast<dirEntry*>(rootBlock.data);
-      for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
-        entries[i].inode = -1;
-        memset(entries[i].name, 0, MAX_FILE_NAME);
-      }
-      
-      // Add self-reference (.)
-      dirEntry selfEntry;
-      memset(&selfEntry, 0, sizeof(dirEntry)); // Limpiar primero
-      strncpy(selfEntry.name, ".", MAX_FILE_NAME - 1);
-      selfEntry.name[MAX_FILE_NAME - 1] = '\0';
-      selfEntry.inode = 0;
-      entries[0] = selfEntry;
-
-      writeBlock(rootBlockIndex, &rootBlock);
-    }
-
-    // Mark inode 0 as used
-    this->inodeBitmap[0] = true;
-    writeInode(0, rootInode);
-
-    saveMetaData();
   }
 
   std::cout << "Disk created successfully." << std::endl;
@@ -102,7 +58,15 @@ void FileSystem::setMetaData()
 {
   this->superBlock.magicNumber = 0xACBD0005;
   this->superBlock.totalBlocks = MAX_BLOCKS;
-  this->superBlock.rootInode = 0;
+
+  // Allocate the root directory's inode
+  int rootsInode = allocateInode(1);
+  Directory rootDir = Directory(rootsInode);
+  this->superBlock.rootInode = rootsInode;
+  
+  this->currentDirectoryInode = rootsInode;
+  this->rootDirectory = rootDir;
+  this->directories.push_back(rootDir);
 
   saveMetaData();
 }
@@ -115,6 +79,8 @@ void FileSystem::loadMetaData()
   std::cout << "DEBUG: Loaded superblock, magic: " << std::hex << this->superBlock.magicNumber 
             << ", rootInode: " << std::dec << this->superBlock.rootInode << std::endl;
 
+  // TODO: Load directories
+
   unpackInodeBitmap();
 
   // Debug: check if inode 0 is marked as used
@@ -125,11 +91,14 @@ void FileSystem::loadMetaData()
 
 void FileSystem::saveMetaData()
 {
-  this->diskFile.seekp(0);
+  this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
 
   // write superblock
+  this->diskFile.seekp(0);
   this->diskFile.write(reinterpret_cast<const char*>(&this->superBlock), sizeof(SuperBlock));
 
+  this->diskFile.flush();
+  
   // write inode bitmap
   saveInodeBitmap();
 
@@ -138,10 +107,11 @@ void FileSystem::saveMetaData()
 
 void FileSystem::saveInodeBitmap()
 {
+  this->diskFile.seekp(INODE_BITMAP_BLOCK * BLOCK_SIZE);
   std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
 
   for (size_t i = 0; i < inodeBitmap.size(); ++i) {
-    if (inodeBitmap[i]) {
+    if (this->inodeBitmap[i]) {
       packedBitmap[i / 8] |= (1 << (i % 8));
     }
   }
@@ -151,6 +121,7 @@ void FileSystem::saveInodeBitmap()
 
 void FileSystem::unpackInodeBitmap()
 {
+  this->diskFile.seekg(INODE_BITMAP_BLOCK * BLOCK_SIZE);
   std::vector<uint8_t> packedBitmap((inodeBitmap.size() + 7) / 8, 0);
   this->diskFile.read(reinterpret_cast<char*>(packedBitmap.data()), packedBitmap.size());
 
@@ -166,14 +137,11 @@ int FileSystem::allocateInode(int type)
   for (int i = 0; i < inodeBitmap.size(); i++) {
     if (!inodeBitmap[i]) {
       inodeBitmap[i] = true;
-      Inode inode;
+      Inode inode = Inode();
       inode.id = i;
       inode.fileSize = 0;
       inode.fileType = type;
       inode.isFree = false;
-      inode.directPointers = std::vector<int>(DIRECT_POINTERS, -1);
-      inode.indirectPointer = -1;
-      inode.doubleIndirectPointer = -1;
       writeInode(i, inode);  // save inode to disk
       return i;
     }
@@ -185,13 +153,19 @@ void FileSystem::loadBlockBitmap()
 {
   Inode node;
 
-  for (int i = 1; i < TOTAL_INODES + 1; i++) {
+  for (int i = 0; i < TOTAL_INODES; i++) {
     // If the inode is not used, skip it
     if (this->inodeBitmap[i] == false) continue;
-    std::cout << this->inodeBitmap[1] << std::endl;
+    
+    std::cout << "Inode " << i << " is used" << std::endl;
+    
+    this->diskFile.seekg((INODE_TABLE_START + i) * BLOCK_SIZE);
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
+
+    std::cout << "this inode's id is " << node.id << std::endl;
+    std::vector<int> pointersBuffer(node.directPointers, node.directPointers + DIRECT_POINTERS);
     // Handling direct pointers
-    setBlockBitmap(node.directPointers, DIRECT_POINTERS);
+    setBlockBitmap(pointersBuffer, DIRECT_POINTERS);
 
     // Handling indirect pointers
     loadIndirectPointers(node.indirectPointer);
@@ -265,6 +239,7 @@ void FileSystem::setBlockBitmap(std::vector<int> blocks, int size)
 {
   for (int i = 0; i < size; i++) {
     if (blocks[i] == -1) continue;
+    std::cout << "Block " << blocks[i] << " is used" << std::endl;
     this->blockBitmap[blocks[i]] = true;
   }
 }
@@ -434,7 +409,7 @@ bool FileSystem::createFile(const std::string fileName)
     std::cerr << "No hay espacio para crear el archivo." << std::endl;
     return false;  
   }
-
+  
   // Add file to current directory
   if (addToDirectory(currentDirectory, fileName, newInode)) {
     std::cout << "Archivo creado (inodo" << newInode << ")" << std::endl;
@@ -444,11 +419,14 @@ bool FileSystem::createFile(const std::string fileName)
     std::cerr << "No se pudo agregar el archivo al directorio." << std::endl;
     return false;
   }
+
+  std::cout << "Archivo creado (inodo " << newInode << ")" << std::endl;
+  return true;
 }
 
 void FileSystem::deleteFile(const std::string fileName)
 {
-  int inodeIndex = findInDirectory(this->currentDirectory, fileName);
+  int inodeIndex = findInDirectory(this->currentDirectoryInode, fileName);
   if (inodeIndex == -1) {
       std::cout << "Archivo no encontrado\n";
       return;
@@ -458,13 +436,13 @@ void FileSystem::deleteFile(const std::string fileName)
   readInode(inodeIndex, inode);
   freeInodeBlocks(inode);
   markInodeAsFree(inodeIndex, inode);
-  removeFromDirectory(this->currentDirectory, inodeIndex);
+  removeFromDirectory(this->currentDirectoryInode, inodeIndex);
   std::cout << "Archivo '" << fileName << "' eliminado correctamente.\n";
 }
 
 void FileSystem::readFile(const std::string fileName)
 {
-  int inodeIndex = findInDirectory(this->currentDirectory, fileName);
+  int inodeIndex = findInDirectory(this->currentDirectoryInode, fileName);
   if (inodeIndex == -1) {
       std::cout << "Archivo no encontrado\n";
       return;
@@ -625,7 +603,7 @@ bool FileSystem::createDirectory(const std::string dirName)
   if (newInode == -1) return false;
 
   // Add the new directory to the current directory
-  bool success = addToDirectory(this->currentDirectory, dirName, newInode);
+  bool success = addToDirectory(this->currentDirectoryInode, dirName, newInode);
   return success;
 }
 

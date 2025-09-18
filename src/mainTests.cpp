@@ -32,6 +32,5 @@ int main() {
     } else {
         std::cout << "Failed to create file\n";
     }
-    
     return 0;
 }
