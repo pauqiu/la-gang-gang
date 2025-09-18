@@ -63,7 +63,9 @@ void FileSystem::setMetaData()
   int rootsInode = allocateInode(1);
   Directory rootDir = Directory(rootsInode);
   this->superBlock.rootInode = rootsInode;
-  
+
+  this->currentDirectoryInode = rootsInode;
+  this->rootDirectory = rootDir;
   this->directories.push_back(rootDir);
 
   saveMetaData();

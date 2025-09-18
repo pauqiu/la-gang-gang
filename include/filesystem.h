@@ -99,6 +99,7 @@ class FileSystem {
     std::string diskName;
     std::fstream diskFile;
     SuperBlock superBlock;
+    Directory rootDirectory;
     std::vector<bool> inodeBitmap;
     std::vector<bool> blockBitmap;
     std::vector<Directory> directories;
