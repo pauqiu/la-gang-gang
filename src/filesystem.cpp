@@ -50,6 +50,8 @@ void FileSystem::initializeDisk()
     setMetaData();
 
     this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
+    
+    // Create root inode
     Inode rootInode;
     rootInode.id = 0;
     rootInode.fileType = 1; // Directory
@@ -59,21 +61,37 @@ void FileSystem::initializeDisk()
     rootInode.indirectPointer = -1;
     rootInode.doubleIndirectPointer = -1;
 
-    // Mark inode 0 as used
-    this->inodeBitmap[0] = true;
-
-    // create self-reference in root directory
-    DataBlock rootBlock;
-    dirEntry selfEntry(".", 0);
-    memcpy(rootBlock.data, &selfEntry, sizeof(dirEntry));
-
+    // Allocate first data block for root directory
     int rootBlockIndex = allocateBlock();
     if (rootBlockIndex != -1) {
-      writeBlock(rootBlockIndex, &rootBlock);
       rootInode.directPointers[0] = rootBlockIndex;
+      
+      // Initialize the directory block with empty entries
+      DataBlock rootBlock;
+      memset(&rootBlock, 0, BLOCK_SIZE);
+
+      dirEntry* entries = reinterpret_cast<dirEntry*>(rootBlock.data);
+      for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
+        entries[i].inode = -1;
+        memset(entries[i].name, 0, MAX_FILE_NAME);
+      }
+      
+      // Add self-reference (.)
+      dirEntry selfEntry;
+      memset(&selfEntry, 0, sizeof(dirEntry)); // Limpiar primero
+      strncpy(selfEntry.name, ".", MAX_FILE_NAME - 1);
+      selfEntry.name[MAX_FILE_NAME - 1] = '\0';
+      selfEntry.inode = 0;
+      entries[0] = selfEntry;
+
       writeBlock(rootBlockIndex, &rootBlock);
-      writeInode(0, rootInode);
     }
+
+    // Mark inode 0 as used
+    this->inodeBitmap[0] = true;
+    writeInode(0, rootInode);
+
+    saveMetaData();
 
     this->diskFile.close();
   }
@@ -95,22 +113,29 @@ void FileSystem::loadMetaData()
 { 
   this->diskFile.seekg(0);
   this->diskFile.read(reinterpret_cast<char*>(&this->superBlock), sizeof(SuperBlock));
+  
+  std::cout << "DEBUG: Loaded superblock, magic: " << std::hex << this->superBlock.magicNumber 
+            << ", rootInode: " << std::dec << this->superBlock.rootInode << std::endl;
 
   unpackInodeBitmap();
 
+  // Debug: check if inode 0 is marked as used
+  std::cout << "DEBUG: Inode 0 used: " << this->inodeBitmap[0] << std::endl;
+  
   loadBlockBitmap();
 }
 
 void FileSystem::saveMetaData()
 {
-  this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
+  this->diskFile.seekp(0);
 
   // write superblock
-  this->diskFile.seekp(0);
   this->diskFile.write(reinterpret_cast<const char*>(&this->superBlock), sizeof(SuperBlock));
 
   // write inode bitmap
   saveInodeBitmap();
+
+  this->diskFile.flush();
 }
 
 void FileSystem::saveInodeBitmap()
@@ -259,7 +284,22 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
 { 
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekp(offset);
-  this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
+  
+  // Write basic fields
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.id), sizeof(inode.id));
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.fileType), sizeof(inode.fileType));
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.fileSize), sizeof(inode.fileSize));
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.isFree), sizeof(inode.isFree));
+  
+  // Write direct pointers
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+      this->diskFile.write(reinterpret_cast<const char*>(&inode.directPointers[i]), sizeof(int));
+  }
+  
+  // Write indirect pointers
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.indirectPointer), sizeof(inode.indirectPointer));
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.doubleIndirectPointer), sizeof(inode.doubleIndirectPointer));
+  
   this->diskFile.flush();
 }
 
@@ -284,7 +324,22 @@ void FileSystem::readInode(int inodeIndex, Inode& inode)
 {
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekg(offset);
-  this->diskFile.read(reinterpret_cast<char*>(&inode), sizeof(Inode));
+  
+  // Read basic fields
+  this->diskFile.read(reinterpret_cast<char*>(&inode.id), sizeof(inode.id));
+  this->diskFile.read(reinterpret_cast<char*>(&inode.fileType), sizeof(inode.fileType));
+  this->diskFile.read(reinterpret_cast<char*>(&inode.fileSize), sizeof(inode.fileSize));
+  this->diskFile.read(reinterpret_cast<char*>(&inode.isFree), sizeof(inode.isFree));
+  
+  // Read direct pointers
+  inode.directPointers.resize(DIRECT_POINTERS);
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+      this->diskFile.read(reinterpret_cast<char*>(&inode.directPointers[i]), sizeof(int));
+  }
+  
+  // Read indirect pointers
+  this->diskFile.read(reinterpret_cast<char*>(&inode.indirectPointer), sizeof(inode.indirectPointer));
+  this->diskFile.read(reinterpret_cast<char*>(&inode.doubleIndirectPointer), sizeof(inode.doubleIndirectPointer));
 }
 
 void FileSystem::readBlock(int blockIndex, void* content) 
@@ -566,15 +621,31 @@ int FileSystem::findInDirectory(int inode, const std::string name)
   Inode dirInode;
   readInode(inode, dirInode);
 
-  if (dirInode.fileType != 1) return -1;  // Not a directory
-  if (dirInode.directPointers[0] == -1) return -1;  // Directory is empty
+  std::cout << "DEBUG: Searching in directory inode " << inode 
+            << ", type: " << dirInode.fileType 
+            << ", first block: " << dirInode.directPointers[0] << std::endl;
+
+  if (dirInode.fileType != 1) {
+    std::cerr << "DEBUG: Inode " << inode << " is not a directory (type: " << dirInode.fileType << ")" << std::endl;
+    return -1;  // Not a directory
+  }
+  if (dirInode.directPointers[0] == -1) {
+    std::cout << "DEBUG: Directory inode " << inode << " is empty" << std::endl;
+    return -1;  // Directory is empty
+  }
 
   DataBlock block;
   readBlock(dirInode.directPointers[0], &block);
 
   dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
   int numEntries = BLOCK_SIZE / sizeof(dirEntry);
+  
+  std::cout << "DEBUG: Searching through " << numEntries << " entries" << std::endl;
+  
   for (int i = 0; i < numEntries; i++) {
+    if (entries[i].inode != -1) {
+      std::cout << "DEBUG: Entry " << i << ": '" << entries[i].name << "' -> inode " << entries[i].inode << std::endl;
+    }
     if (strcmp(entries[i].name, name.c_str()) == 0) {
       return entries[i].inode;
     }
@@ -606,17 +677,38 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
   Inode dirInode;
   readInode(dirInodeIndex, dirInode);
   
-  if (dirInode.fileType != 1) return false; // Not a directory
+  if (dirInode.fileType != 1) {
+    // DEBUG
+    std::cerr << "Error: Not a directory (inode " << dirInodeIndex << ")" << std::endl;
+    return false; // Not a directory
+  }
+  
+  // DEBUG
+  std::cout << "Adding to directory inode " << dirInodeIndex << std::endl;
+  std::cout << "First direct pointer: " << dirInode.directPointers[0] << std::endl;
   
   // Get the directory data block
   DataBlock block;
   if (dirInode.directPointers[0] == -1) {
+    // DEBUG
+    std::cout << "Allocating new block for directory" << std::endl;
     // Allocate first block for directory
     int blockIndex = allocateBlock();
-    if (blockIndex == -1) return false;
+    if (blockIndex == -1) {
+      std::cerr << "Error: No blocks available for directory" << std::endl;
+      return false;
+    }
     dirInode.directPointers[0] = blockIndex;
     writeInode(dirInodeIndex, dirInode);
+    
+    // Initialize the new block with empty entries
+    dirEntry* newEntries = reinterpret_cast<dirEntry*>(block.data);
+    for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
+      newEntries[i].inode = -1;
+      newEntries[i].name[0] = '\0';
+    }
   } else {
+    std::cout << "Reading existing directory block: " << dirInode.directPointers[0] << std::endl;
     readBlock(dirInode.directPointers[0], &block);
   }
   
@@ -626,14 +718,17 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
   
   for (int i = 0; i < numEntries; i++) {
     if (entries[i].inode == -1) {
+      std::cout << "Found empty slot at position " << i << std::endl;
       strncpy(entries[i].name, name.c_str(), MAX_FILE_NAME - 1);
       entries[i].name[MAX_FILE_NAME - 1] = '\0';
       entries[i].inode = newInode;
       writeBlock(dirInode.directPointers[0], &block);
+      std::cout << "Added entry: " << name << " -> inode " << newInode << std::endl;
       return true;
     }
   }
   
+  std::cerr << "Error: Directory full" << std::endl;
   return false; // Directory full
 }
 
