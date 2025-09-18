@@ -93,6 +93,7 @@ class FileSystem {
     void loadBlockBitmap();
     void loadIndirectPointers(int indexBlock);
     void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
+    void readFromDirectPointers(Inode& inode, int& remainingBytes);
     void readFromIndirectPointer(int indexBlock, int& remainingBytes);
     void readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
     void setBlockBitmap(std::vector<int> blocks, int size);
@@ -107,12 +108,16 @@ class FileSystem {
     void writeBlock(int blockIndex, void* content);
     void deallocateBlock(int blockIndex);
     void deallocateInode(int inodeIndex);
-
+    void deallocateIndirectPointer(int indexBlock);
+    void deallocateDoubleIndirectPointer(int indexBlock);
+    void freeInodeBlocks(Inode& inode);
+    void markInodeAsFree(int inodeIndex, Inode& inode);
     // directory methods
     bool createDirectory(const std::string dirName);
     int findInDirectory(int inode, const std::string name);
     bool changeDirectory(const std::string dirName);
     bool addToDirectory(int inode, const std::string name, int newInode);
+    void removeFromDirectory(int dirInodeIndex, int targetInode);
 
   public:
     FileSystem(std::string diskName);
@@ -121,7 +126,6 @@ class FileSystem {
     void deleteFile(const std::string fileName);
     void readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
-
 };
 
 #endif // FILESYSTEM_H

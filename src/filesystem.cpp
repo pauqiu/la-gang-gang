@@ -167,18 +167,33 @@ void FileSystem::loadDoubleIndirectPointers(std::vector<int> indexBlocks)
     }
 }
 
+void FileSystem::readFromDirectPointers(Inode& inode, int& remainingBytes)
+{
+    DataBlock fileDataBlock;
+
+    for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
+        if (inode.directPointers[i] == -1) continue;
+
+        readBlock(inode.directPointers[i], &fileDataBlock);
+
+        int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
+        std::cout.write(fileDataBlock.data, bytesToPrint);
+        remainingBytes -= bytesToPrint;
+    }
+}
+
 void FileSystem::readFromIndirectPointer(int indexBlock, int& remainingBytes) {
     if (indexBlock == -1) return;
 
     std::vector<int> pointers = readIndexBlock(indexBlock);
-    DataBlock block;
+    DataBlock fileDataBlock;
 
     for (int pointer : pointers) {
         if (pointer == -1 || remainingBytes <= 0) break;
 
-        readBlock(pointer, &block);
+        readBlock(pointer, &fileDataBlock);
         int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-        std::cout.write(block.data, bytesToPrint);
+        std::cout.write(fileDataBlock.data, bytesToPrint);
         remainingBytes -= bytesToPrint;
     }
 }
@@ -270,6 +285,60 @@ void FileSystem::deallocateInode(int inodeIndex) {
   }
 }
 
+void FileSystem::deallocateIndirectPointer(int indexBlock)
+{
+    if (indexBlock < 0) return;
+
+    std::vector<int> pointers = readIndexBlock(indexBlock);
+
+    for (int pointer : pointers) {
+        if (pointer != -1) {
+            deallocateBlock(pointer);
+        }
+    }
+
+    deallocateBlock(indexBlock);
+}
+
+void FileSystem::deallocateDoubleIndirectPointer(int indexBlock)
+{
+    if (indexBlock < 0) return;
+
+    std::vector<int> pointers = readIndexBlock(indexBlock);
+
+    for (int pointer : pointers) {
+        if (pointer != -1) {
+            deallocateIndirectPointer(pointer);
+        }
+    }
+
+    deallocateBlock(indexBlock);
+}
+
+void FileSystem::freeInodeBlocks(Inode& inode)
+{
+    // Direct pointers
+    for (int i = 0; i < DIRECT_POINTERS; i++) {
+        if (inode.directPointers[i] != -1) {
+            deallocateBlock(inode.directPointers[i]);
+            inode.directPointers[i] = -1;
+        }
+    }
+
+    deallocateIndirectPointer(inode.indirectPointer);
+    inode.indirectPointer = -1;
+    deallocateDoubleIndirectPointer(inode.doubleIndirectPointer);
+    inode.doubleIndirectPointer = -1;
+}
+
+void FileSystem::markInodeAsFree(int inodeIndex, Inode& inode)
+{
+    inode.isFree = true;
+    inode.fileSize = 0;
+    writeInode(inodeIndex, inode);
+    deallocateInode(inodeIndex);
+}
+
 bool FileSystem::createFile(const std::string fileName)
 {
   int newInode = allocateInode(0);
@@ -285,7 +354,18 @@ bool FileSystem::createFile(const std::string fileName)
 
 void FileSystem::deleteFile(const std::string fileName)
 {
+  int inodeIndex = findInDirectory(this->currentDirectory, fileName);
+  if (inodeIndex == -1) {
+      std::cout << "Archivo no encontrado\n";
+      return;
+  }
 
+  Inode inode;
+  readInode(inodeIndex, inode);
+  freeInodeBlocks(inode);
+  markInodeAsFree(inodeIndex, inode);
+  removeFromDirectory(this->currentDirectory, inodeIndex);
+  std::cout << "Archivo '" << fileName << "' eliminado correctamente.\n";
 }
 
 void FileSystem::readFile(const std::string fileName)
@@ -298,27 +378,14 @@ void FileSystem::readFile(const std::string fileName)
 
   Inode inode;
   readInode(inodeIndex, inode);
-
   int remainingBytes = inode.fileSize;
-  DataBlock fileDataBlock;
 
-  // Read direct pointers
-  for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
-      if (inode.directPointers[i] == -1) continue;
-
-      readBlock(inode.directPointers[i], &fileDataBlock);
-
-      int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-      std::cout.write(fileDataBlock.data, bytesToPrint);
-      remainingBytes -= bytesToPrint;
-  }
-
-  // Read indirect pointers
+  readFromDirectPointers(inode, remainingBytes);
+  
   if (remainingBytes > 0) {
       readFromIndirectPointer(inode.indirectPointer, remainingBytes);
   }
 
-  // Read double indirect pointers
   if (remainingBytes > 0) {
       readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
   }
@@ -365,10 +432,29 @@ int FileSystem::findInDirectory(int inode, const std::string name)
 
 bool FileSystem::changeDirectory(const std::string dirName)
 {
-  return true;
+  
 }
 
 bool FileSystem::addToDirectory(int inode, const std::string name, int newInode)
 {
-  return true;
+  
+}
+
+void FileSystem::removeFromDirectory(int dirInodeIndex, int targetInode)
+{
+    Inode dirInode;
+    readInode(dirInodeIndex, dirInode);
+    DataBlock block;
+    readBlock(dirInode.directPointers[0], &block);
+    dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
+    int numEntries = BLOCK_SIZE / sizeof(dirEntry);
+
+    for (int i = 0; i < numEntries; i++) {
+        if (entries[i].inode == targetInode) {
+            entries[i].inode = -1;
+            entries[i].name[0] = '\0';
+            writeBlock(dirInode.directPointers[0], &block);
+            break;
+        }
+    }
 }
