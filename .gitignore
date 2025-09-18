@@ -1,38 +1,32 @@
-# C++ objects and libs
+# Prerequisites
+*.d
+
+# Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
 *.a
 *.lib
-*.la
-*.lai
-*.so
-*.dll
-*.dylib
 
-# Qt Message files
-*.qm
-
-# qmake generated files
-*.prl
-
-# Qt Creator specific files
-*.user
-*.user.*
-*.autosave
-*.qmlproject.user
-*.qmlproject.user.*
-CMakeLists.txt.user*
-
-# Build directories
-build/
-debug/
-release/
-.ccls-cache/
-
-# Qt unit tests
-target_wrapper.*
-
-# CMake compilation database
-compile_commands.json
+# Executables
+*.exe
+*.out
+*.app
