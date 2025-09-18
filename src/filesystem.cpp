@@ -389,9 +389,124 @@ void FileSystem::readFile(const std::string fileName)
 
 }
 
-void FileSystem::writeFile(const std::string fileName, const std::string content)
-{
+void FileSystem::writeFile(const std::string fileName, const std::string content) {
+  // Search for the file in the current directory
+  int fileInodeIndex = findInDirectory(currentDirectory, fileName);
+  if (fileInodeIndex == -1) {
+    std::cerr << "Archivo no encontrado: " << fileName << std::endl;
+    return;
+  }
 
+  Inode fileInode;
+  readInode(fileInodeIndex, fileInode);
+
+  if (fileInode.fileType != 0){
+    std::cerr << "No es un archivo regular: " << fileName << std::endl;
+    return;
+  }
+
+  int contentSize = content.size();
+  int blocksNeeded = (contentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+  // Free the existent blocks if the new content is smaller
+  if (contentSize < fileInode.fileSize) {
+    std::vector<int> allocatedBlocks = getAllocatedBlocks(fileInodeIndex);
+    for (int i = blocksNeeded; i < allocatedBlocks.size(); i++) {
+      deallocateBlock(allocatedBlocks[i]);
+    }
+  }
+
+  // Write the content to the blocks
+  int bytesWritten = 0;
+  for (int blockIndex = 0; blockIndex < blocksNeeded; blockIndex++) {
+    int currentBlockPointer = -1;
+
+    // Obtener o asignar bloque
+    if (blockIndex < DIRECT_POINTERS) {
+      currentBlockPointer = fileInode.directPointers[blockIndex];
+      if (currentBlockPointer == -1) {
+        currentBlockPointer = allocateBlockForInode(fileInode, blockIndex);
+        if (currentBlockPointer == -1) {
+          std::cerr << "Error: No hay bloques disponibles" << std::endl;
+          break;
+        }
+      }
+    }
+    else {
+      // TODO: Implementar para punteros indirectos
+      std::cerr << "Error: Archivo demasiado grande para punteros directos" << std::endl;
+      break;
+    }
+
+    // Analize what part of the content to write in this block
+    int blockOffset = blockIndex * BLOCK_SIZE;
+    int bytesToWrite = std::min(BLOCK_SIZE, contentSize - blockOffset);
+
+    if (bytesToWrite > 0) {
+      DataBlock block;
+      std::memcpy(block.data, content.data() + blockOffset, bytesToWrite);
+      writeBlock(currentBlockPointer, &block);
+      bytesWritten += bytesToWrite;
+    }
+  }
+
+  // Update file metadata
+  fileInode.fileSize = contentSize;
+  writeInode(fileInodeIndex, fileInode);
+
+  std::cout << "Escritos " << bytesWritten << " bytes en " << fileName << std::endl;
+}
+
+std::vector<int> FileSystem::getAllocatedBlocks(int inodeIndex) {
+  std::vector<int> blocks;
+  Inode inode;
+  readInode(inodeIndex, inode);
+  
+  // Direct Blocks
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+    if (inode.directPointers[i] != -1) {
+      blocks.push_back(inode.directPointers[i]);
+    }
+  }
+
+  return blocks;
+}
+
+int FileSystem::findBlockForOffset(Inode& inode, int offset) {
+  int blockIndex = offset / BLOCK_SIZE;
+  
+  if (blockIndex < DIRECT_POINTERS) {
+    return inode.directPointers[blockIndex];
+  }
+  // TODO: Implementar para punteros indirectos
+  return -1;
+}
+
+int FileSystem::allocateBlockForInode(Inode& inode, int blockIndexInFile) {
+  int newBlock = allocateBlock();
+  if (newBlock == -1) return -1;
+
+  if (blockIndexInFile < DIRECT_POINTERS) {
+    inode.directPointers[blockIndexInFile] = newBlock;
+  } else {
+    // TODO: Implementar para punteros indirectos
+    deallocateBlock(newBlock);
+    return -1;
+  }
+
+  return newBlock;
+}
+
+void FileSystem::writeIndirectBlock(int indirectBlock, std::vector<int>& pointers) {
+  writeBlock(indirectBlock, pointers.data());
+}
+
+void FileSystem::updateFileSize(int inodeIndex, int newSize)
+{
+  Inode inode;
+  readInode(inodeIndex, inode);
+  inode.fileSize = newSize;
+  writeInode(inodeIndex, inode);
 }
 
 // directory methods
