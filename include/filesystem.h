@@ -7,7 +7,9 @@
 #include <vector>
 
 // --- MACROS ---
-
+#define SUPERBLOCK_BLOCK 0
+#define INODE_BITMAP_BLOCK 1
+#define INODE_TABLE_START 2
 #define BLOCK_SIZE 256
 #define MAX_BLOCKS 8192
 #define MAX_DATA_BLOCKS (MAX_BLOCKS - 1 - TOTAL_INODES)
@@ -15,7 +17,6 @@
 #define TOTAL_INODES 512
 #define DIRECT_POINTERS 12
 #define MAX_FILE_NAME 12
-#define INODE_TABLE_START 1
 #define POINTERS_PER_INDEX_BLOCK (BLOCK_SIZE / sizeof(int))
 #define DATA_BLOCK_START (INODE_TABLE_START + TOTAL_INODES)
 
@@ -48,7 +49,10 @@ struct dirEntry
 
 struct Directory 
 {
+  int inode;
   std::vector<dirEntry> entries;
+
+  Directory(int inode) : inode(inode) {}
 };
 
 // Data of the file
@@ -63,16 +67,28 @@ struct DataBlock
 };
 
 // File Control Block
+#pragma pack(push, 1)
 struct Inode
 {
   int id;
   int fileType; // 0 for file, 1 for directory
   int fileSize;
   char permissions[4];
-  std::vector<int> directPointers {DIRECT_POINTERS, -1};
+  int directPointers[DIRECT_POINTERS];
   int indirectPointer;
   int doubleIndirectPointer;
   bool isFree;
+
+  Inode() {
+      id = -1;
+      fileType = 0;
+      fileSize = 0;
+      memset(permissions, 0, 4);
+      memset(directPointers, -1, sizeof(directPointers));
+      indirectPointer = -1;
+      doubleIndirectPointer = -1;
+      isFree = true;
+  }
 };
 
 // --- CLASS ---
@@ -86,7 +102,7 @@ class FileSystem {
     std::vector<bool> inodeBitmap;
     std::vector<bool> blockBitmap;
     std::vector<Directory> directories;
-    int currentDirectory;  // inode of the current directory
+    int currentDirectoryInode; // Inode of the current directory
 
   // Methods
   private:
@@ -105,7 +121,6 @@ class FileSystem {
     void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
     void writeInode(int inodeIndex, Inode& inode);
-    //int findFreeInode();
     int findFreeBlock();
     int allocateBlock();
     void readInode(int inodeIndex, Inode& inode);
