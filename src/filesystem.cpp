@@ -20,6 +20,7 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName), rootDirectory
     initializeDisk();
   } else {
     loadMetaData();
+    this->currentDirectoryInode = this->superBlock.rootInode;
     std::cout << "Disk loaded successfully." << std::endl;
   }
 }
@@ -287,10 +288,10 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekp(offset);
 
-  // Write basic fields
   this->diskFile.write(reinterpret_cast<const char*>(&inode.id), sizeof(inode.id));
   this->diskFile.write(reinterpret_cast<const char*>(&inode.fileType), sizeof(inode.fileType));
   this->diskFile.write(reinterpret_cast<const char*>(&inode.fileSize), sizeof(inode.fileSize));
+  this->diskFile.write(reinterpret_cast<const char*>(&inode.permissions), sizeof(inode.permissions));
   this->diskFile.write(reinterpret_cast<const char*>(&inode.isFree), sizeof(inode.isFree));
 
   // Write direct pointers
@@ -327,14 +328,14 @@ void FileSystem::readInode(int inodeIndex, Inode& inode)
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekg(offset);
 
-  // Read basic fields
+  // Read all fields including permissions
   this->diskFile.read(reinterpret_cast<char*>(&inode.id), sizeof(inode.id));
   this->diskFile.read(reinterpret_cast<char*>(&inode.fileType), sizeof(inode.fileType));
   this->diskFile.read(reinterpret_cast<char*>(&inode.fileSize), sizeof(inode.fileSize));
+  this->diskFile.read(reinterpret_cast<char*>(&inode.permissions), sizeof(inode.permissions));
   this->diskFile.read(reinterpret_cast<char*>(&inode.isFree), sizeof(inode.isFree));
 
   // Read direct pointers
-  // inode.directPointers.resize(DIRECT_POINTERS);
   for (int i = 0; i < DIRECT_POINTERS; i++) {
       this->diskFile.read(reinterpret_cast<char*>(&inode.directPointers[i]), sizeof(int));
   }
