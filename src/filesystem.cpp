@@ -8,10 +8,10 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
   this->superBlock = {};
   this->blockBitmap = std::vector<bool>(MAX_DATA_BLOCKS, false);
   this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
-
+  
   // Check if the disk file already exists.
   this->diskFile.open(diskName, std::ios::in | std::ios::out | std::ios::binary);
-
+  
   if (!this->diskFile.is_open()) {
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
     initializeDisk();
@@ -19,7 +19,6 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName)
     loadMetaData();
     std::cout << "Disk loaded successfully." << std::endl;
   }
-
 }
 
 FileSystem::~FileSystem() 
@@ -37,10 +36,10 @@ void FileSystem::initializeDisk()
   if (!newDiskFile.is_open()) {
     std::cerr << "Error creating disk file." << std::endl;
   } else {
-
+    
     char buffer[BLOCK_SIZE] = {0};
     for (int i = 0; i < MAX_BLOCKS; i++) {
-        newDiskFile.write(buffer, BLOCK_SIZE);
+      newDiskFile.write(buffer, BLOCK_SIZE);
     }
 
     newDiskFile.close();
@@ -82,7 +81,6 @@ void FileSystem::saveMetaData()
 
   // write inode bitmap
   saveInodeBitmap();
-
 }
 
 void FileSystem::saveInodeBitmap()
@@ -124,7 +122,6 @@ int FileSystem::allocateInode(int type)
       writeInode(i, inode);  // save inode to disk
       return i;
     }
-
   }
   return -1;
 }
@@ -389,6 +386,7 @@ void FileSystem::readFile(const std::string fileName)
   if (remainingBytes > 0) {
       readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
   }
+
 }
 
 void FileSystem::writeFile(const std::string fileName, const std::string content)
@@ -430,16 +428,6 @@ int FileSystem::findInDirectory(int inode, const std::string name)
   return -1;
 }
 
-bool FileSystem::changeDirectory(const std::string dirName)
-{
-  
-}
-
-bool FileSystem::addToDirectory(int inode, const std::string name, int newInode)
-{
-  
-}
-
 void FileSystem::removeFromDirectory(int dirInodeIndex, int targetInode)
 {
     Inode dirInode;
@@ -458,3 +446,14 @@ void FileSystem::removeFromDirectory(int dirInodeIndex, int targetInode)
         }
     }
 }
+
+bool FileSystem::changeDirectory(const std::string dirName)
+{
+  return false;
+}
+
+bool FileSystem::addToDirectory(int inode, const std::string name, int newInode)
+{
+  return false;
+}
+

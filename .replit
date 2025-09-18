@@ -1,0 +1,8 @@
+run = "rm -rf build && mkdir build && cmake -S . -B build && cmake --build build && ./build/bin/la-gang-gang"
+
+[nix]
+packages = ["cmake", "gcc"]
+
+[agent]
+expertMode = true
+

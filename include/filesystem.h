@@ -46,6 +46,11 @@ struct dirEntry
   }
 };
 
+struct Directory 
+{
+  std::vector<dirEntry> entries;
+};
+
 // Data of the file
 struct DataBlock
 {
@@ -80,6 +85,7 @@ class FileSystem {
     SuperBlock superBlock;
     std::vector<bool> inodeBitmap;
     std::vector<bool> blockBitmap;
+    std::vector<Directory> directories;
     int currentDirectory;  // inode of the current directory
 
   // Methods
@@ -112,6 +118,7 @@ class FileSystem {
     void deallocateDoubleIndirectPointer(int indexBlock);
     void freeInodeBlocks(Inode& inode);
     void markInodeAsFree(int inodeIndex, Inode& inode);
+
     // directory methods
     bool createDirectory(const std::string dirName);
     int findInDirectory(int inode, const std::string name);
@@ -126,6 +133,7 @@ class FileSystem {
     void deleteFile(const std::string fileName);
     void readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
+
 };
 
 #endif // FILESYSTEM_H
