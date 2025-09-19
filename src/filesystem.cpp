@@ -45,68 +45,65 @@ void FileSystem::initializeDisk()
     for (int i = 0; i < MAX_BLOCKS; i++) {
       newDiskFile.write(buffer, BLOCK_SIZE);
     }
-
     newDiskFile.close();
 
+    // Reopen for read/write access
     this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
     if (!this->diskFile.is_open()) {
-        std::cerr << "Error opening diskFile after creation\n";
-        return;
+      std::cerr << "Error opening diskFile after creation\n";
+      return;
     }
-
+    // Set up initial metadata structure
     setMetaData();
   }
-
   std::cout << "Disk created successfully." << std::endl;
-
 }
 
 void FileSystem::setMetaData()
 {
-    this->superBlock.magicNumber = 0xACBD0005;
-    this->superBlock.totalBlocks = MAX_BLOCKS;
+  this->superBlock.magicNumber = 0xACBD0005;
+  this->superBlock.totalBlocks = MAX_BLOCKS;
 
-    // Allocate the root directory's inode
-    int rootsInode = allocateInode(1);
-    if (!this->diskFile.is_open()) {
-        this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
+  // Allocate the root directory's inode
+  int rootsInode = allocateInode(1);
+  if (!this->diskFile.is_open()) {
+    this->diskFile.open(this->diskName, std::ios::in | std::ios::out | std::ios::binary);
+  }
+
+  Inode rootInode;
+  readInode(rootsInode, rootInode);
+
+  // Configure root directory inode
+  rootInode.fileType = 1;
+  rootInode.isFree = false;
+  rootInode.fileSize = 0;
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+    rootInode.directPointers[i] = -1;
+  }
+  rootInode.indirectPointer = -1;
+  rootInode.doubleIndirectPointer = -1;
+
+  int dirBlock = allocateBlock(); 
+  if (dirBlock == -1) {
+    std::cerr << "No free block for root directory\n";
+  } else {
+    rootInode.directPointers[0] = dirBlock;
+    writeInode(rootsInode, rootInode);
+
+    // Initialize directory block with empty entries
+    DataBlock emptyDir{};
+    dirEntry* entries = reinterpret_cast<dirEntry*>(emptyDir.data);
+    for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
+      entries[i].inode = -1;
+      memset(entries[i].name, 0, MAX_FILE_NAME);
     }
-  
-    Inode rootInode;
-    readInode(rootsInode, rootInode);
-    rootInode.fileType = 1;
-    rootInode.isFree = false;
-    rootInode.fileSize = 0;
-    for (int i = 0; i < DIRECT_POINTERS; i++) {
-        rootInode.directPointers[i] = -1;
-    }
-    rootInode.indirectPointer = -1;
-    rootInode.doubleIndirectPointer = -1;
+    writeBlock(dirBlock, &emptyDir);
+  }
 
-    int dirBlock = allocateBlock(); 
-    if (dirBlock == -1) {
-        std::cerr << "No free block for root directory\n";
-    } else {
-        rootInode.directPointers[0] = dirBlock;
-        std::cout << "DEBUG: Root inode direct pointers after initialization: ";
-        for (int i = 0; i < DIRECT_POINTERS; i++) {
-            std::cout << rootInode.directPointers[i] << " ";
-        }
-        std::cout << std::endl;
-        writeInode(rootsInode, rootInode);
+  this->currentDirectoryInode = rootsInode;
+  this->superBlock.rootInode = rootsInode;
 
-        DataBlock emptyDir{};
-        dirEntry* entries = reinterpret_cast<dirEntry*>(emptyDir.data);
-        for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
-            entries[i].inode = -1;
-            memset(entries[i].name, 0, MAX_FILE_NAME);
-        }
-        writeBlock(dirBlock, &emptyDir);
-    }
-
-    this->currentDirectoryInode = rootsInode;
-    this->superBlock.rootInode = rootsInode;
-    saveMetaData();
+  saveMetaData();
 }
 
 void FileSystem::loadMetaData() 
@@ -114,16 +111,9 @@ void FileSystem::loadMetaData()
   this->diskFile.seekg(0);
   this->diskFile.read(reinterpret_cast<char*>(&this->superBlock), sizeof(SuperBlock));
 
-  std::cout << "DEBUG: Loaded superblock, magic: " << std::hex << this->superBlock.magicNumber 
-            << ", rootInode: " << std::dec << this->superBlock.rootInode << std::endl;
-
   // TODO: Load directories
 
   unpackInodeBitmap();
-
-  // Debug: check if inode 0 is marked as used
-  std::cout << "DEBUG: Inode 0 used: " << this->inodeBitmap[0] << std::endl;
-
   loadBlockBitmap();
 }
 
@@ -193,23 +183,8 @@ void FileSystem::loadBlockBitmap()
     // If the inode is not used, skip it
     if (this->inodeBitmap[i] == false) continue;
 
-    std::cout << "DEBUG: Loading block bitmap for inode " << i << std::endl;
-    
     this->diskFile.seekg((INODE_TABLE_START + i) * BLOCK_SIZE);
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
-
-    std::cout << "DEBUG: Inode " << i << " id: " << node.id 
-              << ", fileType: " << node.fileType 
-              << ", fileSize: " << node.fileSize << std::endl;
-
-    std::cout << "DEBUG: Direct pointers: ";
-    for (int j = 0; j < DIRECT_POINTERS; j++) {
-      std::cout << node.directPointers[j] << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "DEBUG: Indirect pointer: " << node.indirectPointer << std::endl;
-    std::cout << "DEBUG: Double indirect pointer: " << node.doubleIndirectPointer << std::endl;
 
     std::vector<int> pointersBuffer(node.directPointers, node.directPointers + DIRECT_POINTERS);
     // Handling direct pointers
@@ -238,49 +213,49 @@ void FileSystem::loadDoubleIndirectPointers(std::vector<int> indexBlocks)
     if (indexBlocks[i] != -1) {
       std::vector<int> pointers = readIndexBlock(indexBlocks[i]);
       setBlockBitmap(pointers, POINTERS_PER_INDEX_BLOCK);
-    }
+  }
 }
 
 void FileSystem::readFromDirectPointers(Inode& inode, int& remainingBytes)
 {
-    DataBlock fileDataBlock;
+  DataBlock fileDataBlock;
 
-    for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
-        if (inode.directPointers[i] == -1) continue;
+  for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
+    if (inode.directPointers[i] == -1) continue;
 
-        readBlock(inode.directPointers[i], &fileDataBlock);
-
-        int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-        std::cout.write(fileDataBlock.data, bytesToPrint);
-        remainingBytes -= bytesToPrint;
-    }
+    readBlock(inode.directPointers[i], &fileDataBlock);
+    int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
+    std::cout.write(fileDataBlock.data, bytesToPrint);
+    
+    remainingBytes -= bytesToPrint;
+  }
 }
 
 void FileSystem::readFromIndirectPointer(int indexBlock, int& remainingBytes) {
-    if (indexBlock == -1) return;
+  if (indexBlock == -1) return;
 
-    std::vector<int> pointers = readIndexBlock(indexBlock);
-    DataBlock fileDataBlock;
+  std::vector<int> pointers = readIndexBlock(indexBlock);
+  DataBlock fileDataBlock;
 
-    for (int pointer : pointers) {
-        if (pointer == -1 || remainingBytes <= 0) break;
+  for (int pointer : pointers) {
+    if (pointer == -1 || remainingBytes <= 0) break;
 
-        readBlock(pointer, &fileDataBlock);
-        int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-        std::cout.write(fileDataBlock.data, bytesToPrint);
-        remainingBytes -= bytesToPrint;
-    }
+    readBlock(pointer, &fileDataBlock);
+    int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
+    std::cout.write(fileDataBlock.data, bytesToPrint);
+    remainingBytes -= bytesToPrint;
+  }
 }
 
 void FileSystem::readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes) {
-    if (indexBlock == -1) return;
+  if (indexBlock == -1) return;
 
-    std::vector<int> indexBlocks = readIndexBlock(indexBlock);
+  std::vector<int> indexBlocks = readIndexBlock(indexBlock);
 
-    for (int index : indexBlocks) {
-        if (index == -1 || remainingBytes <= 0) break;
-        readFromIndirectPointer(index, remainingBytes);
-    }
+  for (int index : indexBlocks) {
+    if (index == -1 || remainingBytes <= 0) break;
+    readFromIndirectPointer(index, remainingBytes);
+  }
 }
 
 void FileSystem::setBlockBitmap(std::vector<int> blocks, int size)
@@ -313,8 +288,6 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
 { 
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekp(offset);
-  
-  // Write the entire inode structure at once
   this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
   this->diskFile.flush();
 }
@@ -340,8 +313,6 @@ void FileSystem::readInode(int inodeIndex, Inode& inode)
 {
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekg(offset);
-  
-  // Read the entire inode structure at once
   this->diskFile.read(reinterpret_cast<char*>(&inode), sizeof(Inode));
 }
 
@@ -374,56 +345,56 @@ void FileSystem::deallocateInode(int inodeIndex) {
 
 void FileSystem::deallocateIndirectPointer(int indexBlock)
 {
-    if (indexBlock < 0) return;
+  if (indexBlock < 0) return;
 
-    std::vector<int> pointers = readIndexBlock(indexBlock);
+  std::vector<int> pointers = readIndexBlock(indexBlock);
 
-    for (int pointer : pointers) {
-        if (pointer != -1) {
-            deallocateBlock(pointer);
-        }
+  for (int pointer : pointers) {
+    if (pointer != -1) {
+      deallocateBlock(pointer);
     }
+  }
 
-    deallocateBlock(indexBlock);
+  deallocateBlock(indexBlock);
 }
 
 void FileSystem::deallocateDoubleIndirectPointer(int indexBlock)
 {
-    if (indexBlock < 0) return;
+  if (indexBlock < 0) return;
 
-    std::vector<int> pointers = readIndexBlock(indexBlock);
+  std::vector<int> pointers = readIndexBlock(indexBlock);
 
-    for (int pointer : pointers) {
-        if (pointer != -1) {
-            deallocateIndirectPointer(pointer);
-        }
+  for (int pointer : pointers) {
+    if (pointer != -1) {
+      deallocateIndirectPointer(pointer);
     }
+  }
 
-    deallocateBlock(indexBlock);
+  deallocateBlock(indexBlock);
 }
 
 void FileSystem::freeInodeBlocks(Inode& inode)
 {
-    // Direct pointers
-    for (int i = 0; i < DIRECT_POINTERS; i++) {
-        if (inode.directPointers[i] != -1) {
-            deallocateBlock(inode.directPointers[i]);
-            inode.directPointers[i] = -1;
-        }
+  // Direct pointers
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+    if (inode.directPointers[i] != -1) {
+      deallocateBlock(inode.directPointers[i]);
+      inode.directPointers[i] = -1;
     }
+  }
 
-    deallocateIndirectPointer(inode.indirectPointer);
-    inode.indirectPointer = -1;
-    deallocateDoubleIndirectPointer(inode.doubleIndirectPointer);
-    inode.doubleIndirectPointer = -1;
+  deallocateIndirectPointer(inode.indirectPointer);
+  inode.indirectPointer = -1;
+  deallocateDoubleIndirectPointer(inode.doubleIndirectPointer);
+  inode.doubleIndirectPointer = -1;
 }
 
 void FileSystem::markInodeAsFree(int inodeIndex, Inode& inode)
 {
-    inode.isFree = true;
-    inode.fileSize = 0;
-    writeInode(inodeIndex, inode);
-    deallocateInode(inodeIndex);
+  inode.isFree = true;
+  inode.fileSize = 0;
+  writeInode(inodeIndex, inode);
+  deallocateInode(inodeIndex);
 }
 
 bool FileSystem::createFile(const std::string fileName)
@@ -432,7 +403,7 @@ bool FileSystem::createFile(const std::string fileName)
     std::cerr << "Error: Filename too long. Maximum is " << (MAX_FILE_NAME - 1) << " characters." << std::endl;
     return false;
   }
-  std::cout << "DEBUG: Creating file: '" << fileName << "' (length: " << fileName.length() << ")" << std::endl;
+
   int newInode = allocateInode(0);
   if (newInode == -1)
   {
@@ -449,8 +420,6 @@ bool FileSystem::createFile(const std::string fileName)
     std::cerr << "No se pudo agregar el archivo al directorio." << std::endl;
     return false;
   }
-
-  std::cout << "Archivo creado (inodo " << newInode << ")" << std::endl;
   return true;
 }
 
@@ -458,8 +427,8 @@ void FileSystem::deleteFile(const std::string fileName)
 {
   int inodeIndex = findInDirectory(this->currentDirectoryInode, fileName);
   if (inodeIndex == -1) {
-      std::cout << "Archivo no encontrado\n";
-      return;
+    std::cout << "Archivo no encontrado\n";
+    return;
   }
 
   Inode inode;
@@ -474,8 +443,8 @@ void FileSystem::readFile(const std::string fileName)
 {
   int inodeIndex = findInDirectory(this->currentDirectoryInode, fileName);
   if (inodeIndex == -1) {
-      std::cout << "Archivo no encontrado\n";
-      return;
+    std::cout << "Archivo no encontrado\n";
+    return;
   }
 
   Inode inode;
@@ -485,24 +454,18 @@ void FileSystem::readFile(const std::string fileName)
   readFromDirectPointers(inode, remainingBytes);
 
   if (remainingBytes > 0) {
-      readFromIndirectPointer(inode.indirectPointer, remainingBytes);
+    readFromIndirectPointer(inode.indirectPointer, remainingBytes);
   }
 
   if (remainingBytes > 0) {
-      readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
+    readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
   }
 
 }
 
 void FileSystem::writeFile(const std::string fileName, const std::string content) {
-  std::cout << "DEBUG: writeFile searching for: '" << fileName << "'" << std::endl;
   // Search for the file in the current directory
   int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
-  if (fileInodeIndex == -1) {
-    std::cerr << "DEBUG: Archivo no encontrado: " << fileName << std::endl;
-    std::cerr << "DEBUG: Current directory inode: " << currentDirectoryInode << std::endl;
-    return;
-  }
 
   Inode fileInode;
   readInode(fileInodeIndex, fileInode);
@@ -558,8 +521,6 @@ void FileSystem::writeFile(const std::string fileName, const std::string content
     if (bytesToWrite > 0) {
       DataBlock block;
       std::memcpy(block.data, content.data() + blockOffset, bytesToWrite);
-      std::cout << "DEBUG: Writing to block " << currentBlockPointer << " for file block " << blockIndex << std::endl;
-      writeBlock(currentBlockPointer, &block);
       bytesWritten += bytesToWrite;
     }
   }
@@ -642,16 +603,10 @@ int FileSystem::findInDirectory(int inode, const std::string name)
   Inode dirInode;
   readInode(inode, dirInode);
 
-  std::cout << "DEBUG: Searching in directory inode " << inode 
-            << ", type: " << dirInode.fileType 
-            << ", first block: " << dirInode.directPointers[0] << std::endl;
-
   if (dirInode.fileType != 1) {
-    std::cerr << "DEBUG: Inode " << inode << " is not a directory (type: " << dirInode.fileType << ")" << std::endl;
     return -1;  // Not a directory
   }
   if (dirInode.directPointers[0] == -1) {
-    std::cout << "DEBUG: Directory inode " << inode << " is empty" << std::endl;
     return -1;  // Directory is empty
   }
 
@@ -661,15 +616,9 @@ int FileSystem::findInDirectory(int inode, const std::string name)
   dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
   int numEntries = BLOCK_SIZE / sizeof(dirEntry);
 
-  std::cout << "DEBUG: Searching through " << numEntries << " entries" << std::endl;
-
   for (int i = 0; i < numEntries; i++) {
-    if (entries[i].inode != -1) {
-      std::cout << "DEBUG: Entry " << i << ": '" << entries[i].name << "' -> inode " << entries[i].inode << std::endl;
-    }
     // Check if the inode actually exists
     if (entries[i].inode >= TOTAL_INODES) {
-      std::cerr << "DEBUG: Invalid inode number: " << entries[i].inode << std::endl;
       continue;
     }
     if (strncmp(entries[i].name, name.c_str(), MAX_FILE_NAME) == 0) {
@@ -681,21 +630,21 @@ int FileSystem::findInDirectory(int inode, const std::string name)
 
 void FileSystem::removeFromDirectory(int dirInodeIndex, int targetInode)
 {
-    Inode dirInode;
-    readInode(dirInodeIndex, dirInode);
-    DataBlock block;
-    readBlock(dirInode.directPointers[0], &block);
-    dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
-    int numEntries = BLOCK_SIZE / sizeof(dirEntry);
+  Inode dirInode;
+  readInode(dirInodeIndex, dirInode);
+  DataBlock block;
+  readBlock(dirInode.directPointers[0], &block);
+  dirEntry* entries = reinterpret_cast<dirEntry*>(block.data);
+  int numEntries = BLOCK_SIZE / sizeof(dirEntry);
 
-    for (int i = 0; i < numEntries; i++) {
-        if (entries[i].inode == targetInode) {
-            entries[i].inode = -1;
-            entries[i].name[0] = '\0';
-            writeBlock(dirInode.directPointers[0], &block);
-            break;
-        }
+  for (int i = 0; i < numEntries; i++) {
+    if (entries[i].inode == targetInode) {
+      entries[i].inode = -1;
+      entries[i].name[0] = '\0';
+      writeBlock(dirInode.directPointers[0], &block);
+      break;
     }
+  }
 }
 
 bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int newInode)
@@ -703,25 +652,14 @@ bool FileSystem::addToDirectory(int dirInodeIndex, const std::string name, int n
   Inode dirInode;
   readInode(dirInodeIndex, dirInode);
 
-  std::cout << "DEBUG: Directory inode " << dirInodeIndex 
-    << ", type: " << dirInode.fileType 
-    << ", isFree: " << dirInode.isFree << std::endl;
-
   if (dirInode.fileType != 1) {
-    // DEBUG
     std::cerr << "Error: Not a directory (inode " << dirInodeIndex << ")" << std::endl;
     return false; // Not a directory
   }
 
-  // DEBUG
-  std::cout << "Adding to directory inode " << dirInodeIndex << std::endl;
-  std::cout << "First direct pointer: " << dirInode.directPointers[0] << std::endl;
-
   // Get the directory data block
   DataBlock block;
   if (dirInode.directPointers[0] == -1) {
-    // DEBUG
-    std::cout << "Allocating new block for directory" << std::endl;
     // Allocate first block for directory
     int blockIndex = allocateBlock();
     if (blockIndex == -1) {
