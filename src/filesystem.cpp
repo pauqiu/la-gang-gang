@@ -88,6 +88,11 @@ void FileSystem::setMetaData()
         std::cerr << "No free block for root directory\n";
     } else {
         rootInode.directPointers[0] = dirBlock;
+        std::cout << "DEBUG: Root inode direct pointers after initialization: ";
+        for (int i = 0; i < DIRECT_POINTERS; i++) {
+            std::cout << rootInode.directPointers[i] << " ";
+        }
+        std::cout << std::endl;
         writeInode(rootsInode, rootInode);
 
         DataBlock emptyDir{};
@@ -188,10 +193,24 @@ void FileSystem::loadBlockBitmap()
     // If the inode is not used, skip it
     if (this->inodeBitmap[i] == false) continue;
 
+    std::cout << "DEBUG: Loading block bitmap for inode " << i << std::endl;
+    
     this->diskFile.seekg((INODE_TABLE_START + i) * BLOCK_SIZE);
     this->diskFile.read(reinterpret_cast<char*>(&node), sizeof(Inode));
 
-    std::cout << "this inode's id is " << node.id << std::endl;
+    std::cout << "DEBUG: Inode " << i << " id: " << node.id 
+              << ", fileType: " << node.fileType 
+              << ", fileSize: " << node.fileSize << std::endl;
+
+    std::cout << "DEBUG: Direct pointers: ";
+    for (int j = 0; j < DIRECT_POINTERS; j++) {
+      std::cout << node.directPointers[j] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "DEBUG: Indirect pointer: " << node.indirectPointer << std::endl;
+    std::cout << "DEBUG: Double indirect pointer: " << node.doubleIndirectPointer << std::endl;
+
     std::vector<int> pointersBuffer(node.directPointers, node.directPointers + DIRECT_POINTERS);
     // Handling direct pointers
     setBlockBitmap(pointersBuffer, DIRECT_POINTERS);
@@ -268,6 +287,13 @@ void FileSystem::setBlockBitmap(std::vector<int> blocks, int size)
 {
   for (int i = 0; i < size; i++) {
     if (blocks[i] == -1) continue;
+    
+    // Add validation for block numbers
+    if (blocks[i] < 0 || blocks[i] >= MAX_DATA_BLOCKS) {
+      std::cerr << "ERROR: Invalid block number " << blocks[i] << " at position " << i << std::endl;
+      continue;
+    }
+    
     std::cout << "Block " << blocks[i] << " is used" << std::endl;
     this->blockBitmap[blocks[i]] = true;
   }
@@ -287,22 +313,9 @@ void FileSystem::writeInode(int inodeIndex, Inode& inode)
 { 
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekp(offset);
-
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.id), sizeof(inode.id));
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.fileType), sizeof(inode.fileType));
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.fileSize), sizeof(inode.fileSize));
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.permissions), sizeof(inode.permissions));
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.isFree), sizeof(inode.isFree));
-
-  // Write direct pointers
-  for (int i = 0; i < DIRECT_POINTERS; i++) {
-      this->diskFile.write(reinterpret_cast<const char*>(&inode.directPointers[i]), sizeof(int));
-  }
-
-  // Write indirect pointers
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.indirectPointer), sizeof(inode.indirectPointer));
-  this->diskFile.write(reinterpret_cast<const char*>(&inode.doubleIndirectPointer), sizeof(inode.doubleIndirectPointer));
-
+  
+  // Write the entire inode structure at once
+  this->diskFile.write(reinterpret_cast<const char*>(&inode), sizeof(Inode));
   this->diskFile.flush();
 }
 
@@ -327,22 +340,9 @@ void FileSystem::readInode(int inodeIndex, Inode& inode)
 {
   long offset = (INODE_TABLE_START + inodeIndex) * BLOCK_SIZE;
   this->diskFile.seekg(offset);
-
-  // Read all fields including permissions
-  this->diskFile.read(reinterpret_cast<char*>(&inode.id), sizeof(inode.id));
-  this->diskFile.read(reinterpret_cast<char*>(&inode.fileType), sizeof(inode.fileType));
-  this->diskFile.read(reinterpret_cast<char*>(&inode.fileSize), sizeof(inode.fileSize));
-  this->diskFile.read(reinterpret_cast<char*>(&inode.permissions), sizeof(inode.permissions));
-  this->diskFile.read(reinterpret_cast<char*>(&inode.isFree), sizeof(inode.isFree));
-
-  // Read direct pointers
-  for (int i = 0; i < DIRECT_POINTERS; i++) {
-      this->diskFile.read(reinterpret_cast<char*>(&inode.directPointers[i]), sizeof(int));
-  }
-
-  // Read indirect pointers
-  this->diskFile.read(reinterpret_cast<char*>(&inode.indirectPointer), sizeof(inode.indirectPointer));
-  this->diskFile.read(reinterpret_cast<char*>(&inode.doubleIndirectPointer), sizeof(inode.doubleIndirectPointer));
+  
+  // Read the entire inode structure at once
+  this->diskFile.read(reinterpret_cast<char*>(&inode), sizeof(Inode));
 }
 
 void FileSystem::readBlock(int blockIndex, void* content) 
