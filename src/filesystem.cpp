@@ -532,6 +532,7 @@ void FileSystem::writeFile(const std::string fileName,
     if (bytesToWrite > 0) {
       DataBlock block;
       std::memcpy(block.data, content.data() + blockOffset, bytesToWrite);
+      writeBlock(currentBlockPointer, &block);
       bytesWritten += bytesToWrite;
     }
   }
