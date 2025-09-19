@@ -110,6 +110,10 @@ class FileSystem {
   private:
     void initializeDisk();
     void setMetaData();
+    int initializeRootDirectory();
+    void configureRootInode(Inode &inode);
+    int allocateDirectoryBlock(Inode &inode);
+    void initializeDirectoryBlock(int blockIndex);
     void loadMetaData();
     void saveMetaData();
     void saveInodeBitmap();

@@ -63,47 +63,64 @@ void FileSystem::setMetaData() {
   this->superBlock.magicNumber = 0xACBD0005;
   this->superBlock.totalBlocks = MAX_BLOCKS;
 
-  // Allocate the root directory's inode
-  int rootsInode = allocateInode(1);
+  int rootInodeIndex = initializeRootDirectory();
+  this->currentDirectoryInode = rootInodeIndex;
+  this->superBlock.rootInode = rootInodeIndex;
+
+  saveMetaData();
+}
+
+int FileSystem::initializeRootDirectory() {
+  int rootInodeIndex = allocateInode(1);
   if (!this->diskFile.is_open()) {
     this->diskFile.open(this->diskName,
                         std::ios::in | std::ios::out | std::ios::binary);
   }
 
   Inode rootInode;
-  readInode(rootsInode, rootInode);
+  readInode(rootInodeIndex, rootInode);
+  configureRootInode(rootInode);
 
-  // Configure root directory inode
-  rootInode.fileType = 1;
-  rootInode.isFree = false;
-  rootInode.fileSize = 0;
-  for (int i = 0; i < DIRECT_POINTERS; i++) {
-    rootInode.directPointers[i] = -1;
+  int dirBlock = allocateDirectoryBlock(rootInode);
+  if (dirBlock != -1) {
+    initializeDirectoryBlock(dirBlock);
+    writeInode(rootInodeIndex, rootInode);
   }
-  rootInode.indirectPointer = -1;
-  rootInode.doubleIndirectPointer = -1;
 
+  return rootInodeIndex;
+}
+
+void FileSystem::configureRootInode(Inode &inode) {
+  inode.fileType = 1;
+  inode.isFree = false;
+  inode.fileSize = 0;
+  for (int i = 0; i < DIRECT_POINTERS; i++) {
+    inode.directPointers[i] = -1;
+  }
+  inode.indirectPointer = -1;
+  inode.doubleIndirectPointer = -1;
+}
+
+int FileSystem::allocateDirectoryBlock(Inode &inode) {
   int dirBlock = allocateBlock();
   if (dirBlock == -1) {
     std::cerr << "No free block for root directory\n";
-  } else {
-    rootInode.directPointers[0] = dirBlock;
-    writeInode(rootsInode, rootInode);
+    return -1;
+  }
+  inode.directPointers[0] = dirBlock;
+  return dirBlock;
+}
 
-    // Initialize directory block with empty entries
-    DataBlock emptyDir{};
-    dirEntry *entries = reinterpret_cast<dirEntry *>(emptyDir.data);
-    for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
-      entries[i].inode = -1;
-      memset(entries[i].name, 0, MAX_FILE_NAME);
-    }
-    writeBlock(dirBlock, &emptyDir);
+void FileSystem::initializeDirectoryBlock(int blockIndex) {
+  DataBlock emptyDir{};
+  dirEntry *entries = reinterpret_cast<dirEntry *>(emptyDir.data);
+
+  for (int i = 0; i < BLOCK_SIZE / sizeof(dirEntry); i++) {
+    entries[i].inode = -1;
+    memset(entries[i].name, 0, MAX_FILE_NAME);
   }
 
-  this->currentDirectoryInode = rootsInode;
-  this->superBlock.rootInode = rootsInode;
-
-  saveMetaData();
+  writeBlock(blockIndex, &emptyDir);
 }
 
 void FileSystem::loadMetaData() {
