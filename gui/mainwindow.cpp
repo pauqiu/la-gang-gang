@@ -24,7 +24,8 @@ void MainWindow::on_logInButton_clicked()
         menuWindow *menu = new menuWindow();
         menu->setLogInWindow(this);
         menu->setUsername(ui->usernameInput->text());
-        menu->setUserRole("admin");
+        menu->setUserRole("Admin");
+        menu->setUIByRole();
         menu->show();
         close();
     } else{

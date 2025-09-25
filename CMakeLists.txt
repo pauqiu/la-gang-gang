@@ -46,7 +46,6 @@ endif()
 
 target_link_libraries(la-gang-gang PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
-# 👉 Agregar la carpeta include para que funcione #include "filesystem.h"
 target_include_directories(la-gang-gang PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Tests en consola (opcional, separados de la GUI)
@@ -56,7 +55,6 @@ add_executable(filesystem-tests
 )
 target_link_libraries(filesystem-tests PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 
-# 👉 Agregar la carpeta include también a los tests
 target_include_directories(filesystem-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Salidas

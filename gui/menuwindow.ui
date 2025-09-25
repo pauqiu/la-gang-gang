@@ -200,6 +200,9 @@ font: 600 11pt &quot;Segoe UI&quot;;</string>
       </property>
      </widget>
      <widget class="QPushButton" name="activityButton">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>350</x>
@@ -236,7 +239,6 @@ font: 600 11pt &quot;Segoe UI&quot;;</string>
       </property>
       <property name="styleSheet">
        <string notr="true">color: rgb(0, 0, 0);
-border-color: rgb(255, 255, 255);
 font: 600 11pt &quot;Segoe UI&quot;;</string>
       </property>
       <property name="text">
@@ -260,7 +262,6 @@ font: 600 11pt &quot;Segoe UI&quot;;</string>
       </property>
       <property name="styleSheet">
        <string notr="true">color: rgb(0, 0, 0);
-border-color: rgb(255, 255, 255);
 font: 600 11pt &quot;Segoe UI&quot;;</string>
       </property>
       <property name="text">
@@ -317,22 +318,60 @@ font: 700 14pt &quot;Segoe UI&quot;;</string>
          <string>Current Roles</string>
         </property>
        </widget>
-       <widget class="QLabel" name="adminTitle">
+       <widget class="QTableWidget" name="rolesTable">
         <property name="geometry">
          <rect>
-          <x>100</x>
-          <y>120</y>
-          <width>111</width>
-          <height>21</height>
+          <x>140</x>
+          <y>130</y>
+          <width>551</width>
+          <height>371</height>
          </rect>
         </property>
         <property name="styleSheet">
-         <string notr="true">color: rgb(0, 0, 0);
-font: 700 12pt &quot;Segoe UI&quot;;</string>
+         <string notr="true">color: rgb(0, 0, 0);</string>
         </property>
-        <property name="text">
-         <string>Admin</string>
+        <property name="editTriggers">
+         <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
         </property>
+        <property name="alternatingRowColors">
+         <bool>true</bool>
+        </property>
+        <property name="columnCount">
+         <number>3</number>
+        </property>
+        <attribute name="horizontalHeaderCascadingSectionResizes">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="verticalHeaderCascadingSectionResizes">
+         <bool>false</bool>
+        </attribute>
+        <column>
+         <property name="text">
+          <string>Role</string>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="background">
+          <color>
+           <red>255</red>
+           <green>255</green>
+           <blue>255</blue>
+          </color>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Description</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Action</string>
+         </property>
+        </column>
        </widget>
       </widget>
      </widget>
