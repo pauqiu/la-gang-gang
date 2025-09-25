@@ -1,0 +1,30 @@
+run = "rm -rf build && mkdir build && cmake -S . -B build && cmake --build build && ./build/bin/la-gang-gang"
+modules = ["cpp-clang"]
+
+[nix]
+packages = ["cmake", "gcc"]
+
+[agent]
+expertMode = true
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "FileSystem Tests"
+
+[[workflows.workflow]]
+name = "FileSystem Tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "./build/bin/la-gang-gang"
+
+[workflows.workflow.metadata]
+outputType = "console"
