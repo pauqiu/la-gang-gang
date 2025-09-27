@@ -30,11 +30,16 @@ int main() {
         
         // replace in specific position
         std::cout << "Test 1: Replace 'Hello' with 'Hi' at position 0\n";
-        fs.editFile("test.txt", 0, "Hi");
+        fs.replaceInFile("test.txt", 0, "Hi");
         std::cout << "After replace: ";
         fs.readFile("test.txt");
         std::cout << std::endl;
         
+        std::cout << "\nTest 2: Insert ' world ' at position 2 \n";
+        fs.insertInFile("test.txt", 2, " world ");
+        std::cout << "After insert: ";
+        fs.readFile("test.txt");
+        std::cout << std::endl;
         
         std::cout << "\nChecking file was deleted correctly: \n";
         // Clean up
