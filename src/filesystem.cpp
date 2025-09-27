@@ -733,3 +733,123 @@ bool FileSystem::changeDirectory(const std::string dirName) {
   currentDirectoryInode = targetInode;
   return true;
 }
+
+void FileSystem::editFile(const std::string& fileName, int position, const std::string& newContent) {
+    // Search for the file in the current directory
+    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
+    if (fileInodeIndex == -1) {
+        std::cerr << "Error: File not found: " << fileName << std::endl;
+        return;
+    }
+    
+    Inode fileInode;
+    readInode(fileInodeIndex, fileInode);
+    
+    if (fileInode.fileType != 0) {
+        std::cerr << "Error: Not a normal file: " << fileName << std::endl;
+        return;
+    }
+    if (position < 0) {
+        std::cerr << "Error: INvalid position" << std::endl;
+        return;
+    }
+    
+    std::string currentContent = readFileContent(fileInodeIndex, fileInode);
+    
+    // replace content starting at position
+    std::string resultContent;
+    if (position > currentContent.length()) {
+        // fill with 0s
+        currentContent.resize(position, '\0');
+    }
+    
+    // replace text starting from given position
+    resultContent = currentContent.substr(0, position) + newContent;
+    
+    // append the rest of the original text
+    int endPosition = position + newContent.length();
+    if (endPosition < currentContent.length()) {
+        resultContent += currentContent.substr(endPosition);
+    }
+    writeFileContent(fileInodeIndex, fileInode, resultContent);
+    
+    std::cout << "File '" << fileName << "' edited successfully ";
+    std::cout << "Position: " << position << ", New size: " << resultContent.length() << " bytes" << std::endl;
+}
+
+// helper method
+std::string FileSystem::readFileContent(int inodeIndex, const Inode& inode) {
+    std::string content;
+    content.resize(inode.fileSize);
+    
+    int bytesRead = 0;
+    int remainingBytes = inode.fileSize;
+    
+    // Read from direct pointers
+    for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
+        if (inode.directPointers[i] != -1) {
+            DataBlock block;
+            readBlock(inode.directPointers[i], &block);
+            
+            int bytesToRead = std::min(BLOCK_SIZE, remainingBytes);
+            std::memcpy(&content[bytesRead], block.data, bytesToRead);
+            
+            bytesRead += bytesToRead;
+            remainingBytes -= bytesToRead;
+        }
+    }
+    return content;
+}
+
+// helper method
+void FileSystem::writeFileContent(int fileInodeIndex, Inode& fileInode, const std::string& content) {
+    int contentSize = content.size();
+    int blocksNeeded = (contentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    
+    // ree existing blocks if the new content requires fewer blocks
+    if (contentSize < fileInode.fileSize) {
+        std::vector<int> allocatedBlocks = getAllocatedBlocks(fileInodeIndex);
+        for (int i = blocksNeeded; i < allocatedBlocks.size(); i++) {
+            deallocateBlock(allocatedBlocks[i]);
+            if (i < DIRECT_POINTERS) {
+                fileInode.directPointers[i] = -1; // Clear the pointer
+            }
+        }
+    }
+    
+    // Write the content to the blocks
+    int bytesWritten = 0;
+    for (int blockIndex = 0; blockIndex < blocksNeeded; blockIndex++) {
+        int currentBlockPointer = -1;
+        
+        // Get or allocate block
+        if (blockIndex < DIRECT_POINTERS) {
+            currentBlockPointer = fileInode.directPointers[blockIndex];
+            
+            // allocate a new block if not exists
+            if (currentBlockPointer == -1) {
+                currentBlockPointer = allocateBlock();
+                if (currentBlockPointer == -1) {
+                    std::cerr << "Error: No blocks available" << std::endl;
+                    break;
+                }
+                fileInode.directPointers[blockIndex] = currentBlockPointer;
+                writeInode(fileInodeIndex, fileInode);
+            }
+        } 
+        // what part of the content to write in this block
+        int blockOffset = blockIndex * BLOCK_SIZE;
+        int bytesToWrite = std::min(BLOCK_SIZE, contentSize - blockOffset);
+        
+        if (bytesToWrite > 0) {
+            DataBlock block;
+            std::memset(block.data, 0, BLOCK_SIZE); // Clear block first
+            std::memcpy(block.data, content.data() + blockOffset, bytesToWrite);
+            writeBlock(currentBlockPointer, &block);
+            bytesWritten += bytesToWrite;
+        }
+    }
+    // Update file metadata
+    fileInode.fileSize = contentSize;
+    writeInode(fileInodeIndex, fileInode);
+}
