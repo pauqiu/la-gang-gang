@@ -779,6 +779,93 @@ void FileSystem::replaceInFile(const std::string& fileName, int position,
         << resultContent.length() << " bytes" << std::endl;
 }
 
+void FileSystem::insertInFile(const std::string& fileName, int position, 
+        const std::string& content) {
+    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
+    if (fileInodeIndex == -1) {
+        std::cerr << "Error: File not found: " << fileName << std::endl;
+        return;
+    }
+    
+    Inode fileInode;
+    readInode(fileInodeIndex, fileInode);
+    
+    if (fileInode.fileType != 0) {
+        std::cerr << "Error: No es un archivo regular: " << fileName <<std::endl;
+        return;
+    }
+    if (position < 0) {
+        std::cerr << "Error: Posición inválida" << std::endl;
+        return;
+    }
+    
+    std::string currentContent = readFileContent(fileInodeIndex, fileInode);
+    
+    std::string resultContent;
+    if (position > currentContent.length()) {
+        // fill with 0s
+        currentContent.resize(position, '\0');
+    }
+    
+    resultContent = currentContent.substr(0, position) + content + currentContent.substr(position);
+    
+    writeFileContent(fileInodeIndex, fileInode, resultContent);
+    
+    std::cout << "Content inserted into '" << fileName << "' successfully. ";
+    std::cout << "Position: " << position << ", New size: " << resultContent.length() << " bytes" << std::endl;
+}
+
+void FileSystem::appendToFile(const std::string& fileName, const std::string& content) {
+    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
+    if (fileInodeIndex == -1) {
+        std::cerr << "Error: Archivo no encontrado: " << fileName << std::endl;
+        return;
+    }
+    
+    Inode fileInode;
+    readInode(fileInodeIndex, fileInode);
+    
+    if (fileInode.fileType != 0) {
+        std::cerr << "Error: Not a normal file: " << fileName << std::endl;
+        return;
+    }
+    
+    // Read current file content
+    std::string currentContent = readFileContent(fileInodeIndex, fileInode);
+    
+    // Append content to the end
+    std::string resultContent = currentContent + content;
+    
+    // Write the modified content back to the file
+    writeFileContent(fileInodeIndex, fileInode, resultContent);
+    
+    std::cout << "Content appended to '" << fileName << "' successfully. ";
+    std::cout << "New size: " << resultContent.length() << " bytes" << std::endl;
+}
+
+void FileSystem::overwriteFile(const std::string& fileName, const std::string& content) {
+    // Search for the file in the current directory
+    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
+    if (fileInodeIndex == -1) {
+        std::cerr << "Error: File not found: " << fileName << std::endl;
+        return;
+    }
+    
+    Inode fileInode;
+    readInode(fileInodeIndex, fileInode);
+    
+    if (fileInode.fileType != 0) {
+        std::cerr << "Error: Not a normal file: " << fileName << std::endl;
+        return;
+    }
+    
+    // Simply write the new content (this replaces everything)
+    writeFileContent(fileInodeIndex, fileInode, content);
+    
+    std::cout << "File '" << fileName << "' overwritten successfully. ";
+    std::cout << "New size: " << content.length() << " bytes" << std::endl;
+}
+
 // helper method
 std::string FileSystem::readFileContent(int inodeIndex, const Inode& inode) {
     std::string content;
@@ -855,70 +942,4 @@ void FileSystem::writeFileContent(int fileInodeIndex, Inode& fileInode,
     // Update file metadata
     fileInode.fileSize = contentSize;
     writeInode(fileInodeIndex, fileInode);
-}
-
-void FileSystem::insertInFile(const std::string& fileName, int position, 
-        const std::string& content) {
-    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
-    if (fileInodeIndex == -1) {
-        std::cerr << "Error: File not found: " << fileName << std::endl;
-        return;
-    }
-    
-    Inode fileInode;
-    readInode(fileInodeIndex, fileInode);
-    
-    if (fileInode.fileType != 0) {
-        std::cerr << "Error: No es un archivo regular: " << fileName <<std::endl;
-        return;
-    }
-    if (position < 0) {
-        std::cerr << "Error: Posición inválida" << std::endl;
-        return;
-    }
-    
-    std::string currentContent = readFileContent(fileInodeIndex, fileInode);
-    
-    std::string resultContent;
-    if (position > currentContent.length()) {
-        // fill with 0s
-        currentContent.resize(position, '\0');
-    }
-    
-    resultContent = currentContent.substr(0, position) + content + currentContent.substr(position);
-    
-    writeFileContent(fileInodeIndex, fileInode, resultContent);
-    
-    std::cout << "Content inserted into '" << fileName << "' successfully. ";
-    std::cout << "Position: " << position << ", New size: " << resultContent.length() << " bytes" << std::endl;
-}
-
-void FileSystem::appendToFile(const std::string& fileName, const std::string& content) {
-    std::cout << "DEBUG: appendToFile for: '" << fileName << "'" << std::endl;
-    
-    int fileInodeIndex = findInDirectory(currentDirectoryInode, fileName);
-    if (fileInodeIndex == -1) {
-        std::cerr << "Error: Archivo no encontrado: " << fileName << std::endl;
-        return;
-    }
-    
-    Inode fileInode;
-    readInode(fileInodeIndex, fileInode);
-    
-    if (fileInode.fileType != 0) {
-        std::cerr << "Error: Not a normal file: " << fileName << std::endl;
-        return;
-    }
-    
-    // Read current file content
-    std::string currentContent = readFileContent(fileInodeIndex, fileInode);
-    
-    // Append content to the end
-    std::string resultContent = currentContent + content;
-    
-    // Write the modified content back to the file
-    writeFileContent(fileInodeIndex, fileInode, resultContent);
-    
-    std::cout << "Content appended to '" << fileName << "' successfully. ";
-    std::cout << "New size: " << resultContent.length() << " bytes" << std::endl;
 }

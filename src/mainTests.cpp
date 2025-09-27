@@ -28,25 +28,32 @@ int main() {
 
         std::cout << "\nTesting editFile Methods:\n";
         
-        // replace in specific position
+        // replace
         std::cout << "Test 1: Replace 'Hello' with 'Hi' at position 0\n";
         fs.replaceInFile("test.txt", 0, "Hi");
         std::cout << "After replace: ";
         fs.readFile("test.txt");
         std::cout << std::endl;
-        
+        // insert
         std::cout << "\nTest 2: Insert ' world ' at position 2 \n";
         fs.insertInFile("test.txt", 2, " world ");
         std::cout << "After insert: ";
         fs.readFile("test.txt");
         std::cout << std::endl;
-
+        // append
         std::cout << "\nTest 3: Append ' (THE END) ' to file\n";
         fs.appendToFile("test.txt", " (THE END) ");
         std::cout << "After append: ";
         fs.readFile("test.txt");
         std::cout << std::endl;
-        
+        // overwrite
+        std::cout << "\nTest 4: Overwrite 'New overwritten text' to file\n";
+        fs.overwriteFile("test.txt", "New overwritten text");
+        std::cout << "After overwrite: ";
+        fs.readFile("test.txt");
+        std::cout << std::endl;
+
+        // delete
         std::cout << "\nChecking file was deleted correctly: \n";
         // Clean up
         fs.deleteFile("test.txt");
