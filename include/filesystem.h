@@ -165,6 +165,7 @@ class FileSystem {
     // edit methods
     void replaceInFile(const std::string& fileName, int position, const std::string& newContent);
     void insertInFile(const std::string& fileName, int position, const std::string& content);
+    void appendToFile(const std::string& fileName, const std::string& content);
 
 
 };

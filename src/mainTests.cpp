@@ -40,6 +40,12 @@ int main() {
         std::cout << "After insert: ";
         fs.readFile("test.txt");
         std::cout << std::endl;
+
+        std::cout << "\nTest 3: Append ' (THE END) ' to file\n";
+        fs.appendToFile("test.txt", " (THE END) ");
+        std::cout << "After append: ";
+        fs.readFile("test.txt");
+        std::cout << std::endl;
         
         std::cout << "\nChecking file was deleted correctly: \n";
         // Clean up
