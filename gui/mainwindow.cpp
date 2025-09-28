@@ -2,9 +2,11 @@
 #include "./ui_mainwindow.h"
 #include "menuwindow.h"
 
-MainWindow::MainWindow(QWidget *parent)
+#include <QDebug>
+
+MainWindow::MainWindow(Security * security, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    , ui(new Ui::MainWindow), security(security)
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
@@ -21,6 +23,7 @@ MainWindow::~MainWindow()
 void MainWindow::on_logInButton_clicked()
 {
     if(ui->usernameInput->text() != "" && ui->passwordInput->text() != ""){
+        security->verifyUser(ui->usernameInput->text(), ui->passwordInput->text());
         menuWindow *menu = new menuWindow();
         menu->setLogInWindow(this);
         menu->setUsername(ui->usernameInput->text());
