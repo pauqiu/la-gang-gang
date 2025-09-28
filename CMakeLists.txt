@@ -7,13 +7,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Create executable
 add_executable(la-gang-gang
-    src/mainTests.cpp
+    src/main.cpp
     src/filesystem.cpp
+    test/test.cpp
 )
 
 target_include_directories(la-gang-gang PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/test
 )
 
 # Set the executable output directory
