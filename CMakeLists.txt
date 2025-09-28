@@ -57,6 +57,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${GUI_SOURCES}
         include/security.h
         src/security.cpp
+        include/encryptation.h
+        src/encryptation.cpp
     )
 else()
     add_executable(la-gang-gang
