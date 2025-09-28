@@ -34,7 +34,18 @@ std::string Encryptation::encryptPassword(QString password)
     return std::string(hashed_password);
 }
 
-int Encryptation::decryptPassword()
+bool Encryptation::veifyPassword(const QString password, const std::string hash)
 {
-    return 0;
+    if (sodium_init() < 0) {
+        // Library initialization failed
+        return NULL;
+    }
+
+    // Converting QString to a safe buffer
+    QByteArray utf8 = password.toUtf8();
+    const char * pwd = utf8.constData();
+    size_t pwd_len = utf8.size();
+
+    return crypto_pwhash_str_verify(hash.c_str(), pwd, pwd_len) == 0;
 }
+

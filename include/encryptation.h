@@ -4,13 +4,11 @@
 #include <QString>
 #include <string>
 
-#define SALT_LEN 16
-
 class Encryptation {
 
 public:
     static std::string encryptPassword(QString password);
-    int decryptPassword();
+    static bool veifyPassword(const QString password, const std::string hash);
 };
 
 #endif // ENCRYPTATION_H
