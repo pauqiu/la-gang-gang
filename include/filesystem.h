@@ -1,6 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -110,6 +111,10 @@ class FileSystem {
   private:
     void initializeDisk();
     void setMetaData();
+    int initializeRootDirectory();
+    void configureRootInode(Inode &inode);
+    int allocateDirectoryBlock(Inode &inode);
+    void initializeDirectoryBlock(int blockIndex);
     void loadMetaData();
     void saveMetaData();
     void saveInodeBitmap();
@@ -148,6 +153,10 @@ class FileSystem {
     bool addToDirectory(int inode, const std::string name, int newInode);
     void removeFromDirectory(int dirInodeIndex, int targetInode);
 
+    // helper methods for editing files
+    std::string readFileContent(int inodeIndex, const Inode& inode);
+    void writeFileContent(int fileInodeIndex, Inode& fileInode, const std::string& content);
+
   public:
     FileSystem(std::string diskName);
     ~FileSystem();
@@ -155,6 +164,12 @@ class FileSystem {
     void deleteFile(const std::string fileName);
     void readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
+
+    // edit methods
+    void replaceInFile(const std::string& fileName, int position, const std::string& newContent);
+    void insertInFile(const std::string& fileName, int position, const std::string& content);
+    void appendToFile(const std::string& fileName, const std::string& content);
+    void overwriteFile(const std::string& fileName, const std::string& content);
 
 };
 
