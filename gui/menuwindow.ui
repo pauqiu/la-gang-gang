@@ -373,6 +373,38 @@ font: 700 14pt &quot;Segoe UI&quot;;</string>
          </property>
         </column>
        </widget>
+       <widget class="QPushButton" name="addUserButton">
+        <property name="geometry">
+         <rect>
+          <x>540</x>
+          <y>40</y>
+          <width>121</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">color: rgb(0, 0, 0);</string>
+        </property>
+        <property name="text">
+         <string>Add new user</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="asignRoleButton">
+        <property name="geometry">
+         <rect>
+          <x>660</x>
+          <y>40</y>
+          <width>121</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">color: rgb(0, 0, 0);</string>
+        </property>
+        <property name="text">
+         <string>Assign </string>
+        </property>
+       </widget>
       </widget>
      </widget>
     </widget>

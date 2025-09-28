@@ -28,6 +28,9 @@ set(GUI_SOURCES
     gui/menuwindow.h
     gui/menuwindow.ui
     gui/Images.qrc
+    gui/adduserwindow.cpp
+    gui/adduserwindow.h
+    gui/adduserwindow.ui
 )
 
 # Ejecutable principal con GUI
@@ -36,6 +39,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${FILESYSTEM_SOURCES}
         ${GUI_SOURCES}
+        gui/Role.h
     )
 else()
     add_executable(la-gang-gang
