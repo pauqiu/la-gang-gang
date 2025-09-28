@@ -2,9 +2,6 @@
 
 #include "encryptation.h"
 
-
-Encryptation::Encryptation() {}
-
 /**
 *   Important note: Libsodium is a C library.
 *   It handles C parameters, so it doesn't
@@ -13,12 +10,22 @@ Encryptation::Encryptation() {}
 
 std::string Encryptation::encryptPassword(QString password)
 {
-    // Converting QString to const * char
-    std::string stdString = password.toStdString();
-    const char* cPassword = stdString.c_str();
+    if (sodium_init() < 0) {
+        // Library initialization failed
+        return "";
+    }
+
+    // Converting QString to a safe buffer
+    QByteArray utf8 = password.toUtf8();
+    const char * pwd = utf8.constData();
+    size_t pwd_len = utf8.size();
 
     char hashed_password[crypto_pwhash_STRBYTES];
-    if (crypto_pwhash_str(hashed_password, cPassword, strlen(cPassword),
+
+    /**
+     * Note: crypto_pwhash_str generates the salt.
+    **/
+    if (crypto_pwhash_str(hashed_password, pwd, pwd_len,
                           crypto_pwhash_OPSLIMIT_MODERATE, crypto_pwhash_MEMLIMIT_MODERATE) != 0) {
         // Hashing failed
         return "";
