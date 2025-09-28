@@ -23,6 +23,9 @@ FileSystem::FileSystem(std::string diskName) : diskName(diskName), rootDirectory
     this->currentDirectoryInode = this->superBlock.rootInode;
     std::cout << "Disk loaded successfully." << std::endl;
   }
+
+  this->createFile("Users.txt");
+  std::cout << "User's storage created" << std::endl;
 }
 
 FileSystem::~FileSystem() 

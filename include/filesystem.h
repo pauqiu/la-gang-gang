@@ -1,7 +1,6 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -91,6 +90,7 @@ struct Inode
       isFree = true;
   }
 };
+#pragma pack(pop)
 
 // --- CLASS ---
 
