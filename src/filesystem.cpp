@@ -8,21 +8,30 @@ FileSystem::FileSystem(std::string diskName)
   this->superBlock = {};
   this->blockBitmap = std::vector<bool>(MAX_DATA_BLOCKS, false);
   this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
-
-  // Check if the disk file already exists.
-  this->diskFile.open(diskName,
-                      std::ios::in | std::ios::out | std::ios::binary);
-
-  if (!this->diskFile.is_open()) {
-    std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
-    this->diskFile.close();
-    this->diskFile.clear();
-
-    initializeDisk();
+  
+  // Check if the disk file already exists by trying to open it for reading first
+  std::ifstream testFile(diskName, std::ios::binary);
+  bool diskExists = testFile.is_open();
+  testFile.close();
+  
+  if (diskExists) {
+    std::cout << "Disk file found. Loading existing disk..." << std::endl;
+    // Open existing disk for read/write
+    this->diskFile.open(diskName, std::ios::in | std::ios::out |
+        std::ios::binary);
+      
+    if (this->diskFile.is_open()) {
+        loadMetaData();
+        this->currentDirectoryInode = this->superBlock.rootInode;
+        std::cout << "Disk loaded successfully." << std::endl;
+    } else {
+        std::cerr << "Error: Could not open existing disk file." << std::endl;
+        // Fallback to creating new disk
+        initializeDisk();
+    }
   } else {
-    loadMetaData();
-    this->currentDirectoryInode = this->superBlock.rootInode;
-    std::cout << "Disk loaded successfully." << std::endl;
+    std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
+    initializeDisk();
   }
 }
 
