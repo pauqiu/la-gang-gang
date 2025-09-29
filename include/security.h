@@ -11,7 +11,7 @@ public:
     Security(FileSystem * storage);
     ~Security();
     int verifyUser(QString username, QString password);
-    int registerUser(QString username, QString password);
+    int registerUser(QString username, QString password, QString role = "User");
 
 private:
     int saveUser();

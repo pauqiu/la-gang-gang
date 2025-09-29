@@ -1,7 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <cstdint>
+#include <vector>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -122,9 +122,9 @@ class FileSystem {
     void loadBlockBitmap();
     void loadIndirectPointers(int indexBlock);
     void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
-    void readFromDirectPointers(Inode& inode, int& remainingBytes);
-    void readFromIndirectPointer(int indexBlock, int& remainingBytes);
-    void readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
+    std::vector<char> readFromDirectPointers(Inode& inode, int& remainingBytes);
+    std::vector<char> readFromIndirectPointer(int indexBlock, int& remainingBytes);
+    std::vector<char> readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
     void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
     void writeInode(int inodeIndex, Inode& inode);
@@ -161,7 +161,7 @@ class FileSystem {
     ~FileSystem();
     bool createFile(const std::string fileName);
     void deleteFile(const std::string fileName);
-    void readFile(const std::string fileName);
+    std::vector<char> readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
     int findInDirectory(int inode, const std::string name);
     int getCurrentDirectoryInode() { return this->currentDirectoryInode; };
