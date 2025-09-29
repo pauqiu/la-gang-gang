@@ -3,9 +3,10 @@
 
 #include <QMainWindow>
 #include <QVector>
+
 #include "mainwindow.h"
-#include "addUserWindow.h"
 #include "Role.h"
+#include "security.h"
 
 namespace Ui {
 class menuWindow;
@@ -17,7 +18,7 @@ class menuWindow : public QMainWindow
 
 public:
 
-    explicit menuWindow(QWidget *parent = nullptr);
+    explicit menuWindow(Security * security, QWidget *parent = nullptr);
     void setLogInWindow(MainWindow *newLogIn);
     void setUsername(QString user);
     void setUserRole(QString user);
@@ -40,6 +41,7 @@ private:
     QString username;
     QString userRole;
     QVector<Role> roles;
+    Security * security;
 
 };
 

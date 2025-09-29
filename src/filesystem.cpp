@@ -5,7 +5,7 @@
 FileSystem::FileSystem(std::string diskName)
     : diskName(diskName), rootDirectory(0) {
   // Initialize the superblock and bitmaps.
-  this->superBlock = {};
+  /*this->superBlock = {};
   this->blockBitmap = std::vector<bool>(MAX_DATA_BLOCKS, false);
   this->inodeBitmap = std::vector<bool>(TOTAL_INODES, false);
   
@@ -34,7 +34,7 @@ FileSystem::FileSystem(std::string diskName)
     initializeDisk();
   }
 
-  this->createFile("Users.txt");
+  this->createFile("Users.txt");*/
 }
 
 FileSystem::~FileSystem() {

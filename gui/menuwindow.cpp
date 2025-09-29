@@ -1,12 +1,13 @@
+#include "addUserWindow.h"
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
 
 #include <QPushButton>
 #include <QInputDialog>
 
-menuWindow::menuWindow(QWidget *parent)
+menuWindow::menuWindow(Security * security, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::menuWindow)
+    , ui(new Ui::menuWindow), security(security)
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
@@ -182,6 +183,8 @@ void menuWindow::on_addUserButton_clicked()
         QString role = dialog.getSelectedRole();
 
         // TODO: Agregar a archivo de usuarios
+
+
 
         qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
     }

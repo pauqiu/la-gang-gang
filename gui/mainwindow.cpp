@@ -24,9 +24,7 @@ void MainWindow::on_logInButton_clicked()
 {
     if(ui->usernameInput->text() != "" && ui->passwordInput->text() != ""){
 
-        security->registerUser(ui->usernameInput->text(), ui->passwordInput->text());
-
-        menuWindow *menu = new menuWindow();
+        menuWindow *menu = new menuWindow(this->security);
         menu->setLogInWindow(this);
         menu->setUsername(ui->usernameInput->text());
         menu->setUserRole("Admin");
