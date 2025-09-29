@@ -2,6 +2,8 @@
 
 #include "encryptation.h"
 
+#include <QDebug>
+
 /**
 *   Important note: Libsodium is a C library.
 *   It handles C parameters, so it doesn't
@@ -11,7 +13,7 @@
 std::string Encryptation::encryptPassword(QString password)
 {
     if (sodium_init() < 0) {
-        // Library initialization failed
+        qDebug() << "Library initialization failed";
         return "";
     }
 
@@ -37,8 +39,8 @@ std::string Encryptation::encryptPassword(QString password)
 bool Encryptation::veifyPassword(const QString password, const std::string hash)
 {
     if (sodium_init() < 0) {
-        // Library initialization failed
-        return NULL;
+        qDebug() << "Library initialization failed";
+        return false;
     }
 
     // Converting QString to a safe buffer

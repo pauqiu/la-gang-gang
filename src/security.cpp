@@ -27,12 +27,19 @@ int Security::verifyUser(QString username, QString password)
         return -1;
     }
 
+    if(!Encryptation::veifyPassword(password, user[1])) {
+        qDebug() << "The password is incorrect";
+        return -1;
+    }
+
+    // TODO (@Paulette): Return role to the main window.
+
     return 0;
 }
 
 int Security::registerUser(QString username, QString password, QString role)
 {
-    // TODO (@Paulette): Verify that password and username are valid.
+    // TODO (@Paulette): Make this validation more solid.
     if (!validPassword(password) || !validUser(username)) return 1;
 
     std::string hashed_pwd = Encryptation::encryptPassword(password);
@@ -67,13 +74,11 @@ std::vector<std::string> Security::getUser(QString username)
 {
     std::vector<char> users = storage->readFile(USERS_PATH);
 
-    // TODO (@Paulette): check if user exist in the file.
-
     std::vector<std::string> user;
     std::string currentUser;
 
     for (int ch = 0; ch < users.size(); ch++) {
-        if (users[ch] == ':') {
+        if (users[ch] == '\n') {
             user = splitUserInfo(currentUser);
             if (user[0] == username.toStdString()) {
                 qDebug() << "User " << user[0] << " found";
