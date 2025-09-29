@@ -22,6 +22,7 @@ public:
 private:
     bool validPassword(QString password);
     bool validUser(QString password);
+    std::vector<std::string> getUser(QString username);
     std::vector<std::string> splitUserInfo(const std::string userInfo);
 };
 

@@ -1,7 +1,6 @@
 #include "encryptation.h"
 #include "security.h"
 
-#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -10,34 +9,26 @@
 
 #include <QDebug>
 
+/**
+ *  User's file format:
+ *
+ *  username:hashed password:role
+ *
+ **/
+
 Security::Security(FileSystem * storage): storage(storage) {}
 
 int Security::verifyUser(QString username, QString password)
 {
-    std::vector<char> users = storage->readFile(USERS_PATH);
+    std::vector<std::string> user = getUser(username);
 
-    // TODO (@Paulette): check if user exist in the file.
-
-    std::string currentUser;
-
-    for (int ch = 0; ch < users.size(); ch++) {
-        if (users[ch] == ':') {
-            std::vector<std::string> user = splitUserInfo(currentUser);
-            for (std::string element : user) {
-                std::cout << element << " ";
-            }
-            currentUser.clear();
-        } else {
-            currentUser += users[ch];
-        }
+    if (user.empty()) {
+        qDebug() << "User not found";
+        return -1;
     }
 
     return 0;
 }
-
-/**
- * The character ':' is the chosen separator for user info.
- **/
 
 int Security::registerUser(QString username, QString password, QString role)
 {
@@ -72,9 +63,33 @@ bool Security::validUser(QString password)
     return true;
 }
 
+std::vector<std::string> Security::getUser(QString username)
+{
+    std::vector<char> users = storage->readFile(USERS_PATH);
+
+    // TODO (@Paulette): check if user exist in the file.
+
+    std::vector<std::string> user;
+    std::string currentUser;
+
+    for (int ch = 0; ch < users.size(); ch++) {
+        if (users[ch] == ':') {
+            user = splitUserInfo(currentUser);
+            if (user[0] == username.toStdString()) {
+                qDebug() << "User " << user[0] << " found";
+                break;
+            }
+            user.clear();
+            currentUser.clear();
+        } else {
+            currentUser += users[ch];
+        }
+    }
+    return user;
+}
+
 std::vector<std::string> Security::splitUserInfo(const std::string userInfo)
 {
-
     std::vector<std::string> result;
     std::stringstream auxiliar(userInfo);
     std::string token;
