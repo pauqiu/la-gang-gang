@@ -19,15 +19,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(sodium)
 
-
-# Tell CMake where to find OpenSSL
-set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
-set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
-set(OPENSSL_LIBRARIES "${OPENSSL_ROOT_DIR}/lib")
-
-# Find OpenSSL
-find_package(OpenSSL REQUIRED)
-
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
@@ -72,9 +63,6 @@ else()
 endif()
 
 target_link_libraries(la-gang-gang PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-# Link OpenSSL to your target
-target_link_libraries(la-gang-gang PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 target_link_libraries(la-gang-gang PRIVATE sodium)
 
