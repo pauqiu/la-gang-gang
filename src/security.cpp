@@ -60,6 +60,11 @@ int Security::registerUser(QString username, QString password, QString role)
     return 0;
 }
 
+std::vector<std::vector<std::string> > Security::getUsers()
+{
+    return this->registeredUsers;
+}
+
 bool Security::validPassword(QString password)
 {
     if (password.size() > 10 || password.contains(":")) {

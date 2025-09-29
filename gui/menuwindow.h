@@ -35,6 +35,7 @@ private slots:
     void onEditRoleClicked(int row);
 
     void on_addUserButton_clicked();
+    void onEditUserRoleClicked(int row);
 
 private:
     Ui::menuWindow *ui;

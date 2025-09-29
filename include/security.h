@@ -19,6 +19,7 @@ public:
     ~Security();
     int verifyUser(QString username, QString password);
     int registerUser(QString username, QString password, QString role = "User");
+    std::vector<std::vector<std::string>> getUsers();
 
 private:
     bool validPassword(QString password);
