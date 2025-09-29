@@ -16,7 +16,10 @@
  *
  **/
 
-Security::Security(FileSystem * storage): storage(storage) {}
+Security::Security(FileSystem * storage): storage(storage) {
+
+    loadUsersList();
+}
 
 int Security::verifyUser(QString username, QString password)
 {
@@ -39,6 +42,8 @@ int Security::verifyUser(QString username, QString password)
 
 int Security::registerUser(QString username, QString password, QString role)
 {
+    std::vector<std::string> newUser;
+
     // TODO (@Paulette): Make this validation more solid.
     if (!validPassword(password) || !validUser(username)) return 1;
 
@@ -46,6 +51,11 @@ int Security::registerUser(QString username, QString password, QString role)
     std::string user_info = username.toStdString() + ":" + hashed_pwd + ":"
                             + role.toStdString() + "\n";
 
+    newUser.push_back(username.toStdString());
+    newUser.push_back(hashed_pwd);
+    newUser.push_back(role.toStdString());
+
+    this->registeredUsers.push_back(newUser);
     storage->appendToFile(USERS_PATH, user_info);
     return 0;
 }
@@ -72,25 +82,37 @@ bool Security::validUser(QString password)
 
 std::vector<std::string> Security::getUser(QString username)
 {
+    std::vector<std::string> user;
+
+    for (int usr = 0; usr < this->registeredUsers.size();
+         usr++) {
+        if (this->registeredUsers[usr][0] == username.toStdString()) {
+            user = registeredUsers[usr];
+            break;
+        }
+    }
+
+    return user;
+}
+
+void Security::loadUsersList()
+{
     std::vector<char> users = storage->readFile(USERS_PATH);
 
+    std::vector<std::vector<std::string>> usersList;
     std::vector<std::string> user;
     std::string currentUser;
 
     for (int ch = 0; ch < users.size(); ch++) {
         if (users[ch] == '\n') {
             user = splitUserInfo(currentUser);
-            if (user[0] == username.toStdString()) {
-                qDebug() << "User " << user[0] << " found";
-                break;
-            }
-            user.clear();
+            usersList.push_back(user);
             currentUser.clear();
         } else {
             currentUser += users[ch];
         }
     }
-    return user;
+    this->registeredUsers = usersList;
 }
 
 std::vector<std::string> Security::splitUserInfo(const std::string userInfo)

@@ -12,6 +12,7 @@ class Security
 // Attributes
 private:
     FileSystem * storage;
+    std::vector<std::vector<std::string>> registeredUsers;
 
 public:
     Security(FileSystem * storage);
@@ -23,6 +24,7 @@ private:
     bool validPassword(QString password);
     bool validUser(QString password);
     std::vector<std::string> getUser(QString username);
+    void loadUsersList();
     std::vector<std::string> splitUserInfo(const std::string userInfo);
 };
 

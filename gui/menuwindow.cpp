@@ -174,6 +174,44 @@ void menuWindow::setUIByRole()
     }
 }
 
+void menuWindow::loadUsersTable()
+{
+
+    /*QList<User> userList = security->getUsers();  // Or however you retrieve users
+    ui->usersTable->clearContents();
+    ui->usersTable->setRowCount(userList.size());
+
+    ui->usersTable->setColumnCount(3);
+    QStringList headers = {"Username", "Role", "Action"};
+    ui->usersTable->setHorizontalHeaderLabels(headers);
+
+    // Optional column sizes
+    ui->usersTable->setColumnWidth(0, 200);
+    ui->usersTable->setColumnWidth(1, 150);
+    ui->usersTable->setColumnWidth(2, 100);
+
+    for (int i = 0; i < userList.size(); ++i) {
+        const User& user = userList[i];
+
+        QTableWidgetItem *usernameItem = new QTableWidgetItem(user.username);
+        usernameItem->setFlags(usernameItem->flags() ^ Qt::ItemIsEditable);
+        ui->usersTable->setItem(i, 0, usernameItem);
+
+        QTableWidgetItem *roleItem = new QTableWidgetItem(user.role);
+        roleItem->setFlags(roleItem->flags() ^ Qt::ItemIsEditable);
+        ui->usersTable->setItem(i, 1, roleItem);
+
+        QPushButton *editBtn = new QPushButton("Edit Role");
+        ui->usersTable->setCellWidget(i, 2, editBtn);
+
+        // Pass row index as property or connect with a lambda
+        connect(editBtn, &QPushButton::clicked, this, [this, i]() {
+            onEditUserRoleClicked(i);
+        });
+    }*/
+
+}
+
 void menuWindow::on_addUserButton_clicked()
 {
     addUserWindow dialog(this->roles);
@@ -181,8 +219,6 @@ void menuWindow::on_addUserButton_clicked()
         QString username = dialog.getUsername();
         QString password = dialog.getPassword();
         QString role = dialog.getSelectedRole();
-
-        // TODO: Agregar a archivo de usuarios
 
         if (!security->registerUser(username, password, role)) {
             // TODO: Show in UI the password requirements.

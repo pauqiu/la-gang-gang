@@ -23,6 +23,7 @@ public:
     void setUsername(QString user);
     void setUserRole(QString user);
     void setUIByRole();
+    void loadUsersTable();
     ~menuWindow();
 
 private slots:
