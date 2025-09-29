@@ -148,7 +148,6 @@ class FileSystem {
 
     // directory methods
     bool createDirectory(const std::string dirName);
-    int findInDirectory(int inode, const std::string name);
     bool changeDirectory(const std::string dirName);
     bool addToDirectory(int inode, const std::string name, int newInode);
     void removeFromDirectory(int dirInodeIndex, int targetInode);
@@ -164,6 +163,8 @@ class FileSystem {
     void deleteFile(const std::string fileName);
     void readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
+    int findInDirectory(int inode, const std::string name);
+    int getCurrentDirectoryInode() { return this->currentDirectoryInode; };
 
     // edit methods
     void replaceInFile(const std::string& fileName, int position, const std::string& newContent);
