@@ -32,9 +32,8 @@ FileSystem::FileSystem(std::string diskName)
   } else {
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
     initializeDisk();
+    this->createFile("Users.txt");
   }
-
-  this->createFile("Users.txt");
 }
 
 FileSystem::~FileSystem() {

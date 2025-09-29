@@ -1,12 +1,14 @@
+#include "addUserWindow.h"
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
 
 #include <QPushButton>
 #include <QInputDialog>
+#include <vector>
 
-menuWindow::menuWindow(QWidget *parent)
+menuWindow::menuWindow(Security * security, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::menuWindow)
+    , ui(new Ui::menuWindow), security(security)
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
@@ -158,6 +160,7 @@ void menuWindow::setUIByRole()
         Role guestR("Guest", "Solo lectura");
         roles.append(guestR);
         loadRolesTable();
+        loadUsersTable();
         ui->reportsButton->setDisabled(true);
         ui->reportsButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
 
@@ -172,3 +175,61 @@ void menuWindow::setUIByRole()
         ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
     }
 }
+
+void menuWindow::loadUsersTable()
+{
+    // TODO (@Paulette: Avoid passing passwords to front-end.
+
+    std::vector<std::vector<std::string>> users = security->getUsers();
+    ui->usersTable->clearContents();
+    ui->usersTable->setRowCount(users.size());
+
+    ui->usersTable->setColumnCount(3);
+    QStringList headers = {"Username", "Role", "Action"};
+    ui->usersTable->setHorizontalHeaderLabels(headers);
+
+    ui->usersTable->setColumnWidth(0, 200);
+    ui->usersTable->setColumnWidth(1, 150);
+    ui->usersTable->setColumnWidth(2, 100);
+
+    for (int i = 0; i < users.size(); ++i) {
+        const std::vector<std::string> usr = users[i];
+
+        QTableWidgetItem *usernameItem = new QTableWidgetItem(QString::fromStdString(usr[0]));
+        usernameItem->setFlags(usernameItem->flags() ^ Qt::ItemIsEditable);
+        ui->usersTable->setItem(i, 0, usernameItem);
+
+        QTableWidgetItem *roleItem = new QTableWidgetItem(QString::fromStdString(usr[2]));
+        roleItem->setFlags(roleItem->flags() ^ Qt::ItemIsEditable);
+        ui->usersTable->setItem(i, 1, roleItem);
+
+        QPushButton *editBtn = new QPushButton("Edit Role");
+        ui->usersTable->setCellWidget(i, 2, editBtn);
+
+        // Pass row index as property or connect with a lambda
+        connect(editBtn, &QPushButton::clicked, this, [this, i]() {
+            onEditUserRoleClicked(i);
+        });
+    }
+}
+
+void menuWindow::on_addUserButton_clicked()
+{
+    addUserWindow dialog(this->roles);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString username = dialog.getUsername();
+        QString password = dialog.getPassword();
+        QString role = dialog.getSelectedRole();
+
+        if (!security->registerUser(username, password, role)) {
+            // TODO: Show in UI the password requirements.
+            qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+        }
+    }
+}
+
+void menuWindow::onEditUserRoleClicked(int row)
+{
+    qDebug() << "Editing role";
+}
+

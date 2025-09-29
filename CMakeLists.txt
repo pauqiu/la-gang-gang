@@ -19,41 +19,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(sodium)
 
-# Find OpenSSL
-find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h
-    PATHS /usr/include /usr/local/include
-    REQUIRED
-)
-
-find_library(OPENSSL_SSL_LIBRARY
-    NAMES ssl libssl.so.3 libssl.so
-    PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/local/lib
-    REQUIRED
-)
-
-find_library(OPENSSL_CRYPTO_LIBRARY
-    NAMES crypto libcrypto.so.3 libcrypto.so
-    PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/local/lib
-    REQUIRED
-)
-
-message(STATUS "OpenSSL include dir: ${OPENSSL_INCLUDE_DIR}")
-message(STATUS "OpenSSL SSL library: ${OPENSSL_SSL_LIBRARY}")
-message(STATUS "OpenSSL Crypto library: ${OPENSSL_CRYPTO_LIBRARY}")
-
-# Crear targets importados
-add_library(OpenSSL::SSL UNKNOWN IMPORTED)
-set_target_properties(OpenSSL::SSL PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}"
-    IMPORTED_LOCATION "${OPENSSL_SSL_LIBRARY}"
-)
-
-add_library(OpenSSL::Crypto UNKNOWN IMPORTED)
-set_target_properties(OpenSSL::Crypto PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${OPENSSL_INCLUDE_DIR}"
-    IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}"
-)
-
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
@@ -73,6 +38,9 @@ set(GUI_SOURCES
     gui/menuwindow.h
     gui/menuwindow.ui
     gui/Images.qrc
+    gui/adduserwindow.cpp
+    gui/adduserwindow.h
+    gui/adduserwindow.ui
 )
 
 # Archivos de RightsValidation
@@ -98,6 +66,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/security.cpp
         include/encryptation.h
         src/encryptation.cpp
+        gui/Role.h
     )
 else()
     add_executable(la-gang-gang
@@ -107,9 +76,6 @@ else()
 endif()
 
 target_link_libraries(la-gang-gang PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-# Link OpenSSL to your target
-target_link_libraries(la-gang-gang PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 target_link_libraries(la-gang-gang PRIVATE sodium)
 
