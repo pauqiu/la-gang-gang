@@ -1,7 +1,7 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <cstdint>
+#include <vector>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -91,6 +91,7 @@ struct Inode
       isFree = true;
   }
 };
+#pragma pack(pop)
 
 // --- CLASS ---
 
@@ -110,6 +111,10 @@ class FileSystem {
   private:
     void initializeDisk();
     void setMetaData();
+    int initializeRootDirectory();
+    void configureRootInode(Inode &inode);
+    int allocateDirectoryBlock(Inode &inode);
+    void initializeDirectoryBlock(int blockIndex);
     void loadMetaData();
     void saveMetaData();
     void saveInodeBitmap();
@@ -117,9 +122,9 @@ class FileSystem {
     void loadBlockBitmap();
     void loadIndirectPointers(int indexBlock);
     void loadDoubleIndirectPointers(std::vector<int> indexBlocks);
-    void readFromDirectPointers(Inode& inode, int& remainingBytes);
-    void readFromIndirectPointer(int indexBlock, int& remainingBytes);
-    void readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
+    std::vector<char> readFromDirectPointers(Inode& inode, int& remainingBytes);
+    std::vector<char> readFromIndirectPointer(int indexBlock, int& remainingBytes);
+    std::vector<char> readFromDoubleIndirectPointer(int indexBlock, int& remainingBytes);
     void setBlockBitmap(std::vector<int> blocks, int size);
     std::vector<int> readIndexBlock(int indexBlock);
     void writeInode(int inodeIndex, Inode& inode);
@@ -148,13 +153,23 @@ class FileSystem {
     bool addToDirectory(int inode, const std::string name, int newInode);
     void removeFromDirectory(int dirInodeIndex, int targetInode);
 
+    // helper methods for editing files
+    std::string readFileContent(int inodeIndex, const Inode& inode);
+    void writeFileContent(int fileInodeIndex, Inode& fileInode, const std::string& content);
+
   public:
     FileSystem(std::string diskName);
     ~FileSystem();
     bool createFile(const std::string fileName);
     void deleteFile(const std::string fileName);
-    void readFile(const std::string fileName);
+    std::vector<char> readFile(const std::string fileName);
     void writeFile(const std::string fileName, const std::string content);
+
+    // edit methods
+    void replaceInFile(const std::string& fileName, int position, const std::string& newContent);
+    void insertInFile(const std::string& fileName, int position, const std::string& content);
+    void appendToFile(const std::string& fileName, const std::string& content);
+    void overwriteFile(const std::string& fileName, const std::string& content);
 
 };
 

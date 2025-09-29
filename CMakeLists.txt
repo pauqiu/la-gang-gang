@@ -9,6 +9,25 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+include(FetchContent)
+
+FetchContent_Declare(
+  sodium
+  GIT_REPOSITORY https://github.com/robinlinden/libsodium-cmake.git
+  GIT_TAG e5b985ad0dd235d8c4307ea3a385b45e76c74c6a
+)
+
+FetchContent_MakeAvailable(sodium)
+
+
+# Tell CMake where to find OpenSSL
+set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
+set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
+set(OPENSSL_LIBRARIES "${OPENSSL_ROOT_DIR}/lib")
+
+# Find OpenSSL
+find_package(OpenSSL REQUIRED)
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
@@ -39,6 +58,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${FILESYSTEM_SOURCES}
         ${GUI_SOURCES}
+        include/security.h
+        src/security.cpp
+        include/encryptation.h
+        src/encryptation.cpp
         gui/Role.h
     )
 else()
@@ -49,6 +72,11 @@ else()
 endif()
 
 target_link_libraries(la-gang-gang PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+
+# Link OpenSSL to your target
+target_link_libraries(la-gang-gang PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
+target_link_libraries(la-gang-gang PRIVATE sodium)
 
 target_include_directories(la-gang-gang PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

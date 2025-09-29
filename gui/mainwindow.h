@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 
+#include "security.h"
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -14,7 +16,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(Security * security, QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -24,5 +26,6 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+    Security * security;
 };
 #endif // MAINWINDOW_H
