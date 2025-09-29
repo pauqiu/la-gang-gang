@@ -7,6 +7,11 @@
 
 class Security
 {
+
+// Attributes
+private:
+    FileSystem * storage;
+
 public:
     Security(FileSystem * storage);
     ~Security();
@@ -14,10 +19,8 @@ public:
     int registerUser(QString username, QString password, QString role = "User");
 
 private:
-    int saveUser();
-    int getUserCredentials();
-    int compareCredentials();
-    FileSystem * storage;
+    bool validPassword(QString password);
+    bool validUser(QString password);
 };
 
 #endif // SECURITY_H

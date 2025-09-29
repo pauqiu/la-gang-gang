@@ -184,9 +184,10 @@ void menuWindow::on_addUserButton_clicked()
 
         // TODO: Agregar a archivo de usuarios
 
-
-
-        qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+        if (!security->registerUser(username, password, role)) {
+            // TODO: Show in UI the password requirements.
+            qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+        }
     }
 }
 

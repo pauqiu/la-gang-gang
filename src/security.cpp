@@ -30,6 +30,8 @@ int Security::verifyUser(QString username, QString password)
 int Security::registerUser(QString username, QString password, QString role)
 {
     // TODO (@Paulette): Verify that password and username are valid.
+    if (!validPassword(password) || !validUser(username)) return 1;
+
     std::string hashed_pwd = Encryptation::encryptPassword(password);
     std::string user_info = username.toStdString() + ":" + hashed_pwd + ":"
                             + role.toStdString() + "\n";
@@ -38,7 +40,22 @@ int Security::registerUser(QString username, QString password, QString role)
     return 0;
 }
 
-bool Security::validPassword()
+bool Security::validPassword(QString password)
 {
+    if (password.size() > 10 || password.contains(":")) {
+        qDebug() << "Invalid password";
+        return false;
+    }
 
+    return true;
+}
+
+bool Security::validUser(QString password)
+{
+    if (password.size() > 16 || password.contains(":")) {
+        qDebug() << "Invalid user";
+        return false;
+    }
+
+    return true;
 }
