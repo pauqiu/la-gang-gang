@@ -43,12 +43,25 @@ set(GUI_SOURCES
     gui/adduserwindow.ui
 )
 
+# Archivos de RightsValidation
+set(RIGHTS_SOURCES
+    src/RightsValidation/RightsValidation.cpp
+    include/RightsValidation/RightsValidation.h
+    src/RightsValidation/RolesFileManager.cpp
+    include/RightsValidation/RolesFileManager.h
+    src/RightsValidation/RoleManager.cpp
+    include/RightsValidation/RoleManager.h
+    src/RightsValidation/PermissionsManager.cpp
+    include/RightsValidation/PermissionsManager.h
+)
+
 # Ejecutable principal con GUI
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(la-gang-gang
         MANUAL_FINALIZATION
         ${FILESYSTEM_SOURCES}
         ${GUI_SOURCES}
+        ${RIGHTS_SOURCES}
         include/security.h
         src/security.cpp
         include/encryptation.h
