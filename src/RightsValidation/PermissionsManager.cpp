@@ -27,13 +27,10 @@ bool PermissionsManager::addPermissions(int roleId,
   }
 
   std::string currentPermissions = getPermissions(roleId);
-  std::cout << "DEBUG: Current permissions for role " << roleId << ": '" << currentPermissions << "'" << std::endl;
 
   std::vector<std::string> currentPerms = parsePermissions(currentPermissions);
   std::vector<std::string> newPerms = parsePermissions(permissions);
   std::string mergedPermissions = mergePermissions(currentPerms, newPerms);
-
-  std::cout << "DEBUG: Merged permissions: '" << mergedPermissions << "'" << std::endl;
 
   if (updateRolePermissions(roleId, mergedPermissions)) {
     std::cout << "Successfully added permissions to role " << roleId << ": "
@@ -48,11 +45,59 @@ bool PermissionsManager::addPermissions(int roleId,
 
 bool PermissionsManager::removePermissions(int roleId,
                                            const std::string &permissions) {
-  std::cout << "Removing permissions from role " << roleId << ": "
-            << permissions << std::endl;
-  std::cout << "Remove permissions functionality not yet implemented."
-            << std::endl;
-  return true;
+  if (!roleExists(roleId)) {
+    std::cerr << "Error: Role with ID " << roleId << " does not exist."
+              << std::endl;
+    return false;
+  }
+
+  if (permissions.empty()) {
+    std::cerr << "Error: Permissions to remove cannot be empty." << std::endl;
+    return false;
+  }
+
+  std::string currentPermissions = getPermissions(roleId);
+  if (currentPermissions.empty()) {
+    std::cout << "Role " << roleId << " has no permissions to remove."
+              << std::endl;
+    return true;
+  }
+
+  std::vector<std::string> currentPerms = parsePermissions(currentPermissions);
+  std::vector<std::string> permsToRemove = parsePermissions(permissions);
+
+  if (currentPerms.empty()) {
+    std::cout << "Role " << roleId << " has no permissions to remove."
+              << std::endl;
+    return true;
+  }
+
+  std::vector<std::string> newPerms;
+  for (const auto &perm : currentPerms) {
+    if (std::find(permsToRemove.begin(), permsToRemove.end(), perm) ==
+        permsToRemove.end()) {
+      newPerms.push_back(perm);
+    }
+  }
+
+  std::string updatedPermissions;
+  for (size_t i = 0; i < newPerms.size(); ++i) {
+    updatedPermissions += newPerms[i];
+    if (i < newPerms.size() - 1) {
+      updatedPermissions += ",";
+    }
+  }
+
+  // Update file
+  if (updateRolePermissions(roleId, updatedPermissions)) {
+    std::cout << "Successfully removed permissions from role " << roleId << ": "
+              << permissions << std::endl;
+    std::cout << "Remaining permissions: " << updatedPermissions << std::endl;
+    return true;
+  } else {
+    std::cerr << "Error: Failed to update permissions in file." << std::endl;
+    return false;
+  }
 }
 
 std::string PermissionsManager::getPermissions(int roleId) {
@@ -64,8 +109,6 @@ std::string PermissionsManager::getPermissions(int roleId) {
 
   RolesFileManager fileManager(fs);
   std::vector<std::string> lines = fileManager.readRolesFile();
-
-  std::cout << "DEBUG: Searching for role " << roleId << " in " << lines.size() << " lines" << std::endl;
 
   for (const auto &line : lines) {
     // Saltar líneas de comentario
@@ -80,18 +123,15 @@ std::string PermissionsManager::getPermissions(int roleId) {
     if (std::getline(iss, idStr, ';')) {
       try {
         int currentId = std::stoi(idStr);
-        std::cout << "DEBUG: Found ID: " << currentId << std::endl;
-        
+
         if (currentId == roleId) {
-          // Ahora obtener el nombre del rol y los permisos
+          // Get role name and permissions
           if (std::getline(iss, roleName, ';')) {
-            std::getline(iss, permissions); // Puede estar vacío
-            std::cout << "DEBUG: Found role " << roleId << " - Permissions: '" << permissions << "'" << std::endl;
+            std::getline(iss, permissions);
             return permissions;
           }
         }
       } catch (const std::exception &e) {
-        std::cerr << "DEBUG: Error parsing ID from: " << idStr << " - " << e.what() << std::endl;
         continue;
       }
     }
@@ -106,8 +146,6 @@ bool PermissionsManager::updateRolePermissions(
   std::vector<std::string> lines = fileManager.readRolesFile();
   bool updated = false;
 
-  std::cout << "DEBUG: Updating permissions for role " << roleId << " to: " << newPermissions << std::endl;
-
   for (auto &line : lines) {
     if (line.empty() || line[0] == '#') {
       continue;
@@ -120,14 +158,12 @@ bool PermissionsManager::updateRolePermissions(
       try {
         int currentId = std::stoi(idStr);
         if (currentId == roleId) {
-          // Obtener el nombre del rol
+          // Get role name and permissions
           if (std::getline(iss, roleName, ';')) {
-            std::getline(iss, currentPermissions); // Permisos actuales
-            
-            std::string newLine = buildRoleLine(idStr, roleName, newPermissions);
-            std::cout << "DEBUG: Updating line from: " << line << std::endl;
-            std::cout << "DEBUG: Updating line to: " << newLine << std::endl;
-            
+            std::getline(iss, currentPermissions);
+
+            std::string newLine =
+                buildRoleLine(idStr, roleName, newPermissions);
             line = newLine;
             updated = true;
             break;
@@ -140,10 +176,7 @@ bool PermissionsManager::updateRolePermissions(
   }
 
   if (updated) {
-    std::cout << "DEBUG: Writing updated file with " << lines.size() << " lines" << std::endl;
     return fileManager.writeRolesFile(lines);
-  } else {
-    std::cerr << "DEBUG: Could not find role " << roleId << " to update" << std::endl;
   }
 
   return false;
