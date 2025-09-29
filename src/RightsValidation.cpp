@@ -52,3 +52,57 @@ bool RightsValidation::initialize() {
 
   return true;
 }
+
+bool RightsValidation::roleExists(int roleId) {
+    // placeholder implementation
+    return false; 
+}
+
+// Método para agregar un nuevo rol
+bool RightsValidation::addRole(int id, const std::string &roleName) {
+  // Crear la nueva línea en el formato correcto
+  std::string newRoleLine = std::to_string(id) + ";" + roleName + ";";
+
+  // TODO: Leer el contenido actual del archivo
+
+  std::cout << "Adding role: " << id << " - " << roleName << std::endl;
+
+  // TODO:
+  // 1. Leer el contenido actual del archivo
+  // 2. Agregar la nueva línea
+  // 3. Escribir el contenido actualizado
+
+  // Así se vería la línea que se agregaría
+  std::cout << "Would add: " << newRoleLine << std::endl;
+
+  return true;
+}
+
+// Método para agregar permisos (vacío por ahora)
+bool RightsValidation::addPermissions(int roleId,
+    const std::string &permissions) {
+  std::cout << "Adding permissions to role " << roleId << ": " << permissions
+            << std::endl;
+  std::cout << "Permissions functionality not yet implemented." << std::endl;
+  return true;
+}
+
+std::string RightsValidation::getPermissions(int roleId) {
+  // placeholder implementation
+  return ""; 
+}
+
+bool RightsValidation::removeRole(int roleId) {
+  std::cout << "Removing role with ID: " << roleId << std::endl;
+  std::cout << "Remove role functionality not yet implemented." << std::endl;
+  return true;
+}
+
+bool RightsValidation::removePermissions(int roleId,
+    const std::string &permissions) {
+  std::cout << "Removing permissions from role " << roleId << ": "
+            << permissions << std::endl;
+  std::cout << "Remove permissions functionality not yet implemented."
+            << std::endl;
+  return true;
+}

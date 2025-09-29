@@ -14,6 +14,12 @@ private:
 public:
     RightsValidation(FileSystem* filesystem);
     bool initialize();
+    bool roleExists(int roleId);
+    bool addRole(int id, const std::string& roleName);
+    bool addPermissions(int roleId, const std::string& permissions);
+    std::string getPermissions(int roleId);
+    bool removeRole(int roleId);
+    bool removePermissions(int roleId, const std::string& permissions);
 };
 
 #endif
