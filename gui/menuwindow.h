@@ -4,26 +4,19 @@
 #include <QMainWindow>
 #include <QVector>
 #include "mainwindow.h"
+#include "addUserWindow.h"
+#include "Role.h"
 
 namespace Ui {
 class menuWindow;
 }
-
-struct Role {
-    QString name;
-    QString description;
-
-    Role(QString name, QString description){
-        this->name = name;
-        this->description = description;
-    }
-};
 
 class menuWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
+
     explicit menuWindow(QWidget *parent = nullptr);
     void setLogInWindow(MainWindow *newLogIn);
     void setUsername(QString user);
@@ -38,6 +31,8 @@ private slots:
 
     void loadRolesTable();
     void onEditRoleClicked(int row);
+
+    void on_addUserButton_clicked();
 
 private:
     Ui::menuWindow *ui;

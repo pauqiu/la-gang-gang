@@ -172,3 +172,18 @@ void menuWindow::setUIByRole()
         ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
     }
 }
+
+void menuWindow::on_addUserButton_clicked()
+{
+    addUserWindow dialog(this->roles);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString username = dialog.getUsername();
+        QString password = dialog.getPassword();
+        QString role = dialog.getSelectedRole();
+
+        // TODO: Agregar a archivo de usuarios
+
+        qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+    }
+}
+
