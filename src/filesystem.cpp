@@ -1,5 +1,5 @@
 #include "filesystem.h"
-
+#include <cstdint>
 #include <iostream>
 
 FileSystem::FileSystem(std::string diskName)
