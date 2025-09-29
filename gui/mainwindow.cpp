@@ -24,6 +24,8 @@ void MainWindow::on_logInButton_clicked()
 {
     if(ui->usernameInput->text() != "" && ui->passwordInput->text() != ""){
 
+        security->verifyUser(ui->usernameInput->text(), ui->passwordInput->text());
+
         menuWindow *menu = new menuWindow(this->security);
         menu->setLogInWindow(this);
         menu->setUsername(ui->usernameInput->text());

@@ -1,6 +1,8 @@
 #include "encryptation.h"
 #include "security.h"
 
+#include <iostream>
+#include <sstream>
 #include <vector>
 
 #define USERS_PATH "Users.txt"
@@ -16,9 +18,19 @@ int Security::verifyUser(QString username, QString password)
 
     // TODO (@Paulette): check if user exist in the file.
 
-    /*for (int i=0; i<users.size(); i++) {
-        qDebug() << users[i];
-    }*/
+    std::string currentUser;
+
+    for (int ch = 0; ch < users.size(); ch++) {
+        if (users[ch] == ':') {
+            std::vector<std::string> user = splitUserInfo(currentUser);
+            for (std::string element : user) {
+                std::cout << element << " ";
+            }
+            currentUser.clear();
+        } else {
+            currentUser += users[ch];
+        }
+    }
 
     return 0;
 }
@@ -58,4 +70,18 @@ bool Security::validUser(QString password)
     }
 
     return true;
+}
+
+std::vector<std::string> Security::splitUserInfo(const std::string userInfo)
+{
+
+    std::vector<std::string> result;
+    std::stringstream auxiliar(userInfo);
+    std::string token;
+
+    while(std::getline(auxiliar, token, ':')) {
+        result.push_back(token);
+    }
+
+    return result;
 }
