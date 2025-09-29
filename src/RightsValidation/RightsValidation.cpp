@@ -8,17 +8,20 @@ RightsValidation::RightsValidation(FileSystem *filesystem)
     : fs(filesystem), roleManager(filesystem), permissionsManager(filesystem) {}
 
 bool RightsValidation::initialize() {
-  std::cout << "\nInitializing Rights Validation System" << std::endl;
+  std::cout << "\n=== Initializing Rights Validation System ===" << std::endl;
 
-   RolesFileManager fileManager(fs);
-  if (!fileManager.createRolesFile()) {
-    std::cerr << "Error: Failed to create or access roles file." << std::endl;
-    return false;
+  // Inicializar el archivo de roles
+  RolesFileManager fileManager(fs);
+  bool success = fileManager.createRolesFile();
+
+  if (success) {
+    std::cout << "Rights validation system initialized successfully."
+              << std::endl;
+  } else {
+    std::cerr << "Failed to initialize rights validation system." << std::endl;
   }
-
-  std::cout << "Sucesss: Rights validation system initialized successfully."
-            << std::endl;
-  return true;
+  
+  return success;
 }
 
 // Métodos delegados a RoleManager
