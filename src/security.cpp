@@ -37,3 +37,8 @@ int Security::registerUser(QString username, QString password, QString role)
     storage->appendToFile(USERS_PATH, user_info);
     return 0;
 }
+
+bool Security::validPassword()
+{
+
+}
