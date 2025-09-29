@@ -33,6 +33,8 @@ FileSystem::FileSystem(std::string diskName)
     std::cout << "Disk does not exist. Creating a new disk..." << std::endl;
     initializeDisk();
   }
+
+  this->createFile("Users.txt");
 }
 
 FileSystem::~FileSystem() {
@@ -240,24 +242,30 @@ void FileSystem::loadDoubleIndirectPointers(std::vector<int> indexBlocks) {
     }
 }
 
-void FileSystem::readFromDirectPointers(Inode &inode, int &remainingBytes) {
+std::vector<char> FileSystem::readFromDirectPointers(Inode &inode, int &remainingBytes) {
   DataBlock fileDataBlock;
+    std::vector<char> content;
 
   for (int i = 0; i < DIRECT_POINTERS && remainingBytes > 0; i++) {
     if (inode.directPointers[i] == -1)
       continue;
 
     readBlock(inode.directPointers[i], &fileDataBlock);
-    int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-    std::cout.write(fileDataBlock.data, bytesToPrint);
 
-    remainingBytes -= bytesToPrint;
+    int bytesToRead = std::min(remainingBytes, BLOCK_SIZE);
+    content.insert(content.end(), fileDataBlock.data, fileDataBlock.data + bytesToRead);
+
+    remainingBytes -= bytesToRead;
   }
+
+  return content;
 }
 
-void FileSystem::readFromIndirectPointer(int indexBlock, int &remainingBytes) {
+std::vector<char> FileSystem::readFromIndirectPointer(int indexBlock, int &remainingBytes) {
+    std::vector<char> result;
+
   if (indexBlock == -1)
-    return;
+    return result;
 
   std::vector<int> pointers = readIndexBlock(indexBlock);
   DataBlock fileDataBlock;
@@ -267,24 +275,34 @@ void FileSystem::readFromIndirectPointer(int indexBlock, int &remainingBytes) {
       break;
 
     readBlock(pointer, &fileDataBlock);
-    int bytesToPrint = std::min(remainingBytes, BLOCK_SIZE);
-    std::cout.write(fileDataBlock.data, bytesToPrint);
-    remainingBytes -= bytesToPrint;
+    int bytesToRead = std::min(remainingBytes, BLOCK_SIZE);
+
+    result.insert(result.end(), fileDataBlock.data, fileDataBlock.data + bytesToRead);
+    remainingBytes -= bytesToRead;
   }
+
+  return result;
 }
 
-void FileSystem::readFromDoubleIndirectPointer(int indexBlock,
+std::vector<char> FileSystem::readFromDoubleIndirectPointer(int indexBlock,
                                                int &remainingBytes) {
-  if (indexBlock == -1)
-    return;
 
-  std::vector<int> indexBlocks = readIndexBlock(indexBlock);
+    std::vector<char> result;
 
-  for (int index : indexBlocks) {
-    if (index == -1 || remainingBytes <= 0)
-      break;
-    readFromIndirectPointer(index, remainingBytes);
-  }
+    if (indexBlock == -1)
+        return result;
+
+    std::vector<int> indexBlocks = readIndexBlock(indexBlock);
+
+    for (int index : indexBlocks) {
+        if (index == -1 || remainingBytes <= 0)
+            break;
+
+        std::vector<char> indirectResult = readFromIndirectPointer(index, remainingBytes);
+        result.insert(result.end(), indirectResult.begin(), indirectResult.end());
+    }
+
+    return result;
 }
 
 void FileSystem::setBlockBitmap(std::vector<int> blocks, int size) {
@@ -461,26 +479,33 @@ void FileSystem::deleteFile(const std::string fileName) {
   std::cout << "Archivo '" << fileName << "' eliminado correctamente.\n";
 }
 
-void FileSystem::readFile(const std::string fileName) {
+std::vector<char> FileSystem::readFile(const std::string fileName) {
+
+    std::vector<char> content;
   int inodeIndex = findInDirectory(this->currentDirectoryInode, fileName);
   if (inodeIndex == -1) {
     std::cout << "Archivo no encontrado\n";
-    return;
+    return content;
   }
 
   Inode inode;
   readInode(inodeIndex, inode);
   int remainingBytes = inode.fileSize;
 
-  readFromDirectPointers(inode, remainingBytes);
+  std::vector<char> directData = readFromDirectPointers(inode, remainingBytes);
+  content.insert(content.end(), directData.begin(), directData.end());
 
   if (remainingBytes > 0) {
-    readFromIndirectPointer(inode.indirectPointer, remainingBytes);
+    std::vector<char> indirectData = readFromIndirectPointer(inode.indirectPointer, remainingBytes);
+    content.insert(content.end(), indirectData.begin(), indirectData.end());
   }
 
   if (remainingBytes > 0) {
-    readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
+    std::vector<char> doubleIndirectData = readFromDoubleIndirectPointer(inode.doubleIndirectPointer, remainingBytes);
+    content.insert(content.end(), doubleIndirectData.begin(), doubleIndirectData.end());
   }
+
+  return content;
 }
 
 void FileSystem::writeFile(const std::string fileName,
