@@ -174,7 +174,11 @@ void menuWindow::onEditRoleClicked(int row)
 
 void menuWindow::setUIByRole()
 {
+    ui->adminButton->setDisabled(true);
+    ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
     if (this->userRole == "admin" || this->userRole == "admin_general") {
+        ui->adminButton->setDisabled(false);
+        ui->adminButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
         Role adminR("Admin", "Acceso total");
         roles.append(adminR);
         Role userR("User", "Acceso básico");
