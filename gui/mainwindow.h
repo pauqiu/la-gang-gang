@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 
+#include "RightsValidation/RightsValidation.h"
 #include "security.h"
 
 QT_BEGIN_NAMESPACE
@@ -16,7 +17,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(Security * security, QWidget *parent = nullptr);
+    MainWindow(Security * security, RightsValidation * rights, QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -27,5 +28,6 @@ private slots:
 private:
     Ui::MainWindow *ui;
     Security * security;
+    RightsValidation * rights;
 };
 #endif // MAINWINDOW_H

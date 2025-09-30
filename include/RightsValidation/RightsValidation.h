@@ -15,6 +15,7 @@ private:
 public:
     RightsValidation(FileSystem* filesystem);
     bool initialize();
+    RoleManager& getRoleManager() { return roleManager; }
     
     // Métodos delegados a RoleManager
     bool roleExists(int roleId);

@@ -41,6 +41,9 @@ set(GUI_SOURCES
     gui/adduserwindow.cpp
     gui/adduserwindow.h
     gui/adduserwindow.ui
+    gui/addrolewindow.h
+    gui/addrolewindow.cpp
+    gui/addrolewindow.ui
 )
 
 # Archivos de RightsValidation

@@ -1,17 +1,20 @@
 #include "addUserWindow.h"
+#include "addRoleWindow.h"
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
 
+#include <sstream>
 #include <QPushButton>
 #include <QInputDialog>
 #include <vector>
 
-menuWindow::menuWindow(Security * security, QWidget *parent)
+menuWindow::menuWindow(Security * security, RightsValidation * rights, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::menuWindow), security(security)
+    , ui(new Ui::menuWindow), security(security), rights(rights)
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
+    this->rolesAmount = 0;
 
     // Menu options
     ui->stackedWidget->setCurrentIndex(0);
@@ -102,10 +105,8 @@ void menuWindow::setSensorsMenuActiveButton(int index)
             buttonIndex++;
             continue;
         } else if (index == buttonIndex) {
-            // Botón activo
             btn->setStyleSheet("color: rgb(0, 65, 119); border-bottom-color: rgb(0, 65, 119); font: 600 11pt Segoe UI;");
         } else {
-            // Botones inactivos
             btn->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
         }
         buttonIndex++;
@@ -115,32 +116,42 @@ void menuWindow::setSensorsMenuActiveButton(int index)
 void menuWindow::loadRolesTable()
 {
     ui->rolesTable->clearContents();
-    ui->rolesTable->setRowCount(roles.size());
-
+    ui->rolesTable->setRowCount(0);
     ui->rolesTable->setColumnCount(3);
-    QStringList headers = {"Role", "Description", "Action"};
+
+    QStringList headers = {"ID", "Role Name", "Permissions"};
     ui->rolesTable->setHorizontalHeaderLabels(headers);
 
-    // Tamaño específico de cada columna
-    ui->rolesTable->setColumnWidth(0, 150);
-    ui->rolesTable->setColumnWidth(1, 300);
-    ui->rolesTable->setColumnWidth(2, 80);
+    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
 
-    for (int i = 0; i < roles.size(); ++i) {
-        QTableWidgetItem *nameItem = new QTableWidgetItem(roles[i].name);
-        nameItem->setFlags(nameItem->flags() ^ Qt::ItemIsEditable);
-        ui->rolesTable->setItem(i, 0, nameItem);
+    int row = 0;
+    for (const auto &line : roleLines) {
+        if (line.empty() || line[0] == '#') continue;
 
-        QTableWidgetItem *descItem = new QTableWidgetItem(roles[i].description);
-        descItem->setFlags(descItem->flags() ^ Qt::ItemIsEditable);
-        ui->rolesTable->setItem(i, 1, descItem);
+        std::istringstream iss(line);
+        std::string idStr, roleName, permissions;
 
-        QPushButton *editBtn = new QPushButton("Edit");
-        ui->rolesTable->setCellWidget(i, 2, editBtn);
+        if (std::getline(iss, idStr, ';') &&
+            std::getline(iss, roleName, ';')) {
+            this->rolesAmount++;
+            int roleId = std::stoi(idStr);
+            permissions = rights->getPermissions(roleId);
 
-        // Connect edit button with role
-        connect(editBtn, &QPushButton::clicked, this, [this, i]() {
-            onEditRoleClicked(i);
+            ui->rolesTable->insertRow(row);
+
+            ui->rolesTable->setItem(row, 0, new QTableWidgetItem(QString::number(roleId)));
+            ui->rolesTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(roleName)));
+            ui->rolesTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(permissions)));
+
+            row++;
+        }
+    }
+
+    for (int row = 0; row < ui->rolesTable->rowCount(); ++row) {
+        QPushButton *editRoleBtn = new QPushButton("Edit");
+        ui->rolesTable->setCellWidget(row, 3, editRoleBtn);
+        connect(editRoleBtn, &QPushButton::clicked, this, [this, row]() {
+            onEditRoleClicked(row);
         });
     }
 }
@@ -221,9 +232,9 @@ void menuWindow::on_addUserButton_clicked()
         QString password = dialog.getPassword();
         QString role = dialog.getSelectedRole();
 
-        if (!security->registerUser(username, password, role)) {
-            // TODO: Show in UI the password requirements.
+        if (security->registerUser(username, password, role) == 0) {
             qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+            loadUsersTable();
         }
     }
 }
@@ -233,3 +244,21 @@ void menuWindow::onEditUserRoleClicked(int row)
     qDebug() << "Editing role";
 }
 
+
+void menuWindow::on_addRoleButton_clicked()
+{
+    addRoleWindow dialog;
+    if (dialog.exec() == QDialog::Accepted) {
+        QString role = dialog.getRole();
+        QString description = dialog.getDescription();
+
+        this->rolesAmount++;
+        if (rights->addRole(this->rolesAmount, role.toStdString())){
+            qDebug() << "Nuevo rol:" << role;
+        }
+        if (rights->addPermissions(this->rolesAmount, description.toStdString())){
+            qDebug() << "Nuevo rol:" << role;
+        }
+        loadRolesTable();
+    }
+}

@@ -11,13 +11,13 @@ public:
   bool addRole(int id, const std::string &roleName);
   bool removeRole(int roleId);
   bool roleExists(int roleId);
+  std::vector<std::string> readRolesFile();
 
 private:
   FileSystem *fs;
   std::string buildRoleLine(const std::string &idStr,
                             const std::string &roleName,
                             const std::string &permissions = "");
-  std::vector<std::string> readRolesFile();
   bool writeRolesFile(const std::vector<std::string> &lines);
 };
 

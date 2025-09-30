@@ -4,9 +4,9 @@
 
 #include <QDebug>
 
-MainWindow::MainWindow(Security * security, QWidget *parent)
+MainWindow::MainWindow(Security * security, RightsValidation * rights, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow), security(security)
+    , ui(new Ui::MainWindow), security(security), rights(rights)
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
@@ -31,7 +31,7 @@ void MainWindow::on_logInButton_clicked()
 
             qDebug() << "Login succesful!";
 
-            menuWindow *menu = new menuWindow(this->security);
+            menuWindow *menu = new menuWindow(this->security, this->rights);
             menu->setLogInWindow(this);
             menu->setUsername(ui->usernameInput->text());
             menu->setUserRole("Admin");

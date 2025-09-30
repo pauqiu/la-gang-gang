@@ -5,6 +5,8 @@
 #include <QVector>
 
 #include "mainwindow.h"
+#include "RightsValidation/RightsValidation.h"
+#include "RightsValidation/RolesFileManager.h"
 #include "Role.h"
 #include "security.h"
 
@@ -18,7 +20,7 @@ class menuWindow : public QMainWindow
 
 public:
 
-    explicit menuWindow(Security * security, QWidget *parent = nullptr);
+    explicit menuWindow(Security * security, RightsValidation * rights, QWidget *parent = nullptr);
     void setLogInWindow(MainWindow *newLogIn);
     void setUsername(QString user);
     void setUserRole(QString user);
@@ -37,6 +39,8 @@ private slots:
     void on_addUserButton_clicked();
     void onEditUserRoleClicked(int row);
 
+    void on_addRoleButton_clicked();
+
 private:
     Ui::menuWindow *ui;
     MainWindow *logIn;
@@ -44,6 +48,8 @@ private:
     QString userRole;
     QVector<Role> roles;
     Security * security;
+    RightsValidation * rights;
+    int rolesAmount;
 
 };
 
