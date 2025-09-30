@@ -174,7 +174,7 @@ void menuWindow::onEditRoleClicked(int row)
 
 void menuWindow::setUIByRole()
 {
-    if (this->userRole == "Admin") {
+    if (this->userRole == "admin" || this->userRole == "admin_general") {
         Role adminR("Admin", "Acceso total");
         roles.append(adminR);
         Role userR("User", "Acceso básico");
@@ -187,7 +187,7 @@ void menuWindow::setUIByRole()
         ui->reportsButton->setDisabled(true);
         ui->reportsButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
 
-    } else if (this->userRole == "Analist") {
+    } else if (this->userRole == "analista_negocios") {
         ui->adminButton->setDisabled(true);
         ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
 

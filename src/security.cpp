@@ -21,6 +21,8 @@ Security::Security(FileSystem * storage): storage(storage) {
     loadUsersList();
 }
 
+Security::~Security(){}
+
 int Security::verifyUser(QString username, QString password)
 {
     std::vector<std::string> user = getUser(username);
