@@ -20,6 +20,8 @@ public:
     int verifyUser(QString username, QString password);
     int registerUser(QString username, QString password, QString role = "User");
     std::vector<std::vector<std::string>> getUsers();
+    int updateUser(QString oldUsername, QString newUsername, QString newRole);
+    QString getUserRole(const QString &username);
 
 private:
     bool validPassword(QString password);

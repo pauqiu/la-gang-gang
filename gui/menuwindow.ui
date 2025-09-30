@@ -404,26 +404,11 @@ font: 700 14pt &quot;Segoe UI&quot;;</string>
            </rect>
           </property>
           <property name="styleSheet">
-           <string notr="true">color: rgb(0, 0, 0);</string>
+           <string notr="true">color: rgb(0, 0, 0);
+border-color: rgb(0, 0, 0);</string>
           </property>
           <property name="text">
            <string>Add new user</string>
-          </property>
-         </widget>
-         <widget class="QPushButton" name="asignRoleButton">
-          <property name="geometry">
-           <rect>
-            <x>670</x>
-            <y>20</y>
-            <width>121</width>
-            <height>31</height>
-           </rect>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">color: rgb(0, 0, 0);</string>
-          </property>
-          <property name="text">
-           <string>Assign </string>
           </property>
          </widget>
          <widget class="QLabel" name="systemRolesTitle_2">
@@ -481,7 +466,8 @@ font: 700 14pt &quot;Segoe UI&quot;;</string>
            </rect>
           </property>
           <property name="styleSheet">
-           <string notr="true">color: rgb(0, 0, 0);</string>
+           <string notr="true">color: rgb(0, 0, 0);
+border-color: rgb(0, 0, 0);</string>
           </property>
           <property name="text">
            <string>Add new role</string>

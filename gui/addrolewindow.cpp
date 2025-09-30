@@ -15,6 +15,13 @@ addRoleWindow::addRoleWindow(QWidget *parent)
             this, &addRoleWindow::validateInputs);
 }
 
+addRoleWindow::addRoleWindow(const QString &role, const QString &description, QWidget *parent)
+    : addRoleWindow(parent)
+{
+    ui->roleInput->setText(role);
+    ui->descriptionInput->setText(description);
+}
+
 addRoleWindow::~addRoleWindow()
 {
     delete ui;

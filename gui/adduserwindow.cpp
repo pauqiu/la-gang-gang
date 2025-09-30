@@ -20,6 +20,23 @@ addUserWindow::addUserWindow(const QList<Role>& roles, QWidget *parent) :
             this, &addUserWindow::validateInputs);
 }
 
+addUserWindow::addUserWindow(const QList<Role>& roles,
+                             const QString &username,
+                             const QString &role,
+                             QWidget *parent)
+    : addUserWindow(roles, parent)
+{
+    ui->usernameInput->setText(username);
+
+    int index = ui->rolesComboBox->findText(role);
+    if (index >= 0)
+        ui->rolesComboBox->setCurrentIndex(index);
+
+    ui->passwordInput->setVisible(false);
+    ui->passwordMessage->setVisible(false);
+    ui->label_3->setVisible(false);
+}
+
 addUserWindow::~addUserWindow()
 {
     delete ui;
@@ -51,7 +68,7 @@ void addUserWindow::validateInputs()
         ui->usernameMessage->setVisible(false);
     }
 
-    if (ui->passwordInput->text().isEmpty()) {
+    if (ui->passwordInput->isVisible() && ui->passwordInput->text().isEmpty()) {
         ui->passwordMessage->setVisible(true);
         valid = false;
     } else {

@@ -12,6 +12,8 @@ class addUserWindow : public QDialog
 
 public:
     explicit addUserWindow(const QList<Role>& roles, QWidget *parent = nullptr);
+    addUserWindow(const QList<Role>& roles, const QString &username,
+                  const QString &role, QWidget *parent);
     ~addUserWindow();
 
     QString getUsername() const;

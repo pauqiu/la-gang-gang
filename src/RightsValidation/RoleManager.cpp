@@ -149,3 +149,44 @@ bool RoleManager::removeRole(int roleId) {
     return false;
   }
 }
+
+bool RoleManager::updateRole(const std::string &oldRoleName,
+                             const std::string &newRoleName,
+                             const std::string &newPermissions) {
+    std::vector<std::string> lines = readRolesFile();
+    bool found = false;
+
+    for (auto &line : lines) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string idStr, roleName, permissions;
+
+        if (std::getline(iss, idStr, ';') &&
+            std::getline(iss, roleName, ';') &&
+            std::getline(iss, permissions)) {
+
+            if (roleName == oldRoleName) {
+                line = buildRoleLine(idStr, newRoleName, newPermissions);
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        std::cerr << "Error: Role '" << oldRoleName << "' not found." << std::endl;
+        return false;
+    }
+
+    if (writeRolesFile(lines)) {
+        std::cout << "Role updated: " << oldRoleName
+                  << " -> " << newRoleName
+                  << " | New permissions: " << newPermissions
+                  << std::endl;
+        return true;
+    } else {
+        std::cerr << "Error: Failed to save updated roles file." << std::endl;
+        return false;
+    }
+}

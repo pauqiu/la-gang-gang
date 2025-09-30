@@ -77,7 +77,7 @@ color: rgb(0, 0, 0);</string>
      </rect>
     </property>
     <property name="styleSheet">
-     <string notr="true">font: 100 italic 11pt &quot;Adwaita Sans&quot;;
+     <string notr="true">font: 11pt &quot;Segoe UI&quot;;
 color: rgb(0, 0, 0);</string>
     </property>
     <property name="text">
@@ -94,7 +94,7 @@ color: rgb(0, 0, 0);</string>
      </rect>
     </property>
     <property name="styleSheet">
-     <string notr="true">font: 100 italic 11pt &quot;Adwaita Sans&quot;;
+     <string notr="true">font: 11pt &quot;Segoe UI&quot;;
 color: rgb(0, 0, 0);</string>
     </property>
     <property name="text">
@@ -205,7 +205,7 @@ color: rgb(0, 0, 0);</string>
     <property name="geometry">
      <rect>
       <x>480</x>
-      <y>590</y>
+      <y>610</y>
       <width>131</width>
       <height>21</height>
      </rect>
@@ -223,7 +223,7 @@ color: rgb(0, 0, 0);</string>
     <property name="geometry">
      <rect>
       <x>490</x>
-      <y>620</y>
+      <y>640</y>
       <width>291</width>
       <height>16</height>
      </rect>
@@ -253,6 +253,24 @@ color: rgb(0, 0, 0);</string>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="authErrorMessage">
+    <property name="geometry">
+     <rect>
+      <x>480</x>
+      <y>586</y>
+      <width>141</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 8pt &quot;Adwaita Sans&quot;;
+font: 600 9pt &quot;Segoe UI&quot;;
+color: rgb(0, 0, 0);</string>
+    </property>
+    <property name="text">
+     <string>Incorrect user or password</string>
     </property>
    </widget>
   </widget>

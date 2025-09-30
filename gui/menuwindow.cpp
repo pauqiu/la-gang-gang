@@ -6,6 +6,7 @@
 #include <sstream>
 #include <QPushButton>
 #include <QInputDialog>
+#include <QDebug>
 #include <vector>
 
 menuWindow::menuWindow(Security * security, RightsValidation * rights, QWidget *parent)
@@ -117,12 +118,13 @@ void menuWindow::loadRolesTable()
 {
     ui->rolesTable->clearContents();
     ui->rolesTable->setRowCount(0);
-    ui->rolesTable->setColumnCount(3);
+    ui->rolesTable->setColumnCount(4); // ID, Role Name, Permissions, Action
 
-    QStringList headers = {"ID", "Role Name", "Permissions"};
+    QStringList headers = {"ID", "Role Name", "Permissions", "Action"};
     ui->rolesTable->setHorizontalHeaderLabels(headers);
 
     std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    this->rolesAmount = 0;
 
     int row = 0;
     for (const auto &line : roleLines) {
@@ -138,27 +140,36 @@ void menuWindow::loadRolesTable()
             permissions = rights->getPermissions(roleId);
 
             ui->rolesTable->insertRow(row);
-
             ui->rolesTable->setItem(row, 0, new QTableWidgetItem(QString::number(roleId)));
             ui->rolesTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(roleName)));
             ui->rolesTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(permissions)));
 
+            QPushButton *editRoleBtn = new QPushButton("Edit");
+            ui->rolesTable->setCellWidget(row, 3, editRoleBtn);
+            connect(editRoleBtn, &QPushButton::clicked, this, [this, row]() {
+                onEditRoleClicked(row);
+            });
+
             row++;
         }
-    }
-
-    for (int row = 0; row < ui->rolesTable->rowCount(); ++row) {
-        QPushButton *editRoleBtn = new QPushButton("Edit");
-        ui->rolesTable->setCellWidget(row, 3, editRoleBtn);
-        connect(editRoleBtn, &QPushButton::clicked, this, [this, row]() {
-            onEditRoleClicked(row);
-        });
     }
 }
 
 void menuWindow::onEditRoleClicked(int row)
 {
-    if (row < 0 || row >= roles.size()) return;
+    if (row < 0 || row >= ui->rolesTable->rowCount()) return;
+
+    QString roleName = ui->rolesTable->item(row, 1)->text();
+    QString roleDesc = ui->rolesTable->item(row, 2)->text();
+
+    addRoleWindow dialog(roleName, roleDesc, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString newRole = dialog.getRole();
+        QString newDesc = dialog.getDescription();
+
+        rights->getRoleManager().updateRole(roleName.toStdString(), newRole.toStdString(), newDesc.toStdString());
+        loadRolesTable();
+    }
 }
 
 void menuWindow::setUIByRole()
@@ -172,6 +183,7 @@ void menuWindow::setUIByRole()
         roles.append(guestR);
         loadRolesTable();
         loadUsersTable();
+
         ui->reportsButton->setDisabled(true);
         ui->reportsButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
 
@@ -189,13 +201,11 @@ void menuWindow::setUIByRole()
 
 void menuWindow::loadUsersTable()
 {
-    // TODO (@Paulette: Avoid passing passwords to front-end.
-
     std::vector<std::vector<std::string>> users = security->getUsers();
     ui->usersTable->clearContents();
     ui->usersTable->setRowCount(users.size());
-
     ui->usersTable->setColumnCount(3);
+
     QStringList headers = {"Username", "Role", "Action"};
     ui->usersTable->setHorizontalHeaderLabels(headers);
 
@@ -216,8 +226,6 @@ void menuWindow::loadUsersTable()
 
         QPushButton *editBtn = new QPushButton("Edit Role");
         ui->usersTable->setCellWidget(i, 2, editBtn);
-
-        // Pass row index as property or connect with a lambda
         connect(editBtn, &QPushButton::clicked, this, [this, i]() {
             onEditUserRoleClicked(i);
         });
@@ -226,7 +234,21 @@ void menuWindow::loadUsersTable()
 
 void menuWindow::on_addUserButton_clicked()
 {
-    addUserWindow dialog(this->roles);
+    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    QList<Role> currentRoles;
+
+    for (const auto &line : roleLines) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string idStr, roleName;
+        if (std::getline(iss, idStr, ';') &&
+            std::getline(iss, roleName, ';')) {
+            currentRoles.append(Role(QString::fromStdString(roleName), ""));
+        }
+    }
+
+    addUserWindow dialog(currentRoles);
     if (dialog.exec() == QDialog::Accepted) {
         QString username = dialog.getUsername();
         QString password = dialog.getPassword();
@@ -241,9 +263,34 @@ void menuWindow::on_addUserButton_clicked()
 
 void menuWindow::onEditUserRoleClicked(int row)
 {
-    qDebug() << "Editing role";
-}
+    if (row < 0 || row >= ui->usersTable->rowCount()) return;
 
+    QString username = ui->usersTable->item(row, 0)->text();
+    QString role = ui->usersTable->item(row, 1)->text();
+
+    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    QList<Role> currentRoles;
+
+    for (const auto &line : roleLines) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string idStr, roleName;
+        if (std::getline(iss, idStr, ';') &&
+            std::getline(iss, roleName, ';')) {
+            currentRoles.append(Role(QString::fromStdString(roleName), ""));
+        }
+    }
+
+    addUserWindow dialog(currentRoles, username, role, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString newUsername = dialog.getUsername();
+        QString newRole = dialog.getSelectedRole();
+
+        security->updateUser(username, newUsername, newRole);
+        loadUsersTable();
+    }
+}
 
 void menuWindow::on_addRoleButton_clicked()
 {
@@ -253,11 +300,11 @@ void menuWindow::on_addRoleButton_clicked()
         QString description = dialog.getDescription();
 
         this->rolesAmount++;
-        if (rights->addRole(this->rolesAmount, role.toStdString())){
+        if (rights->addRole(this->rolesAmount, role.toStdString())) {
             qDebug() << "Nuevo rol:" << role;
         }
-        if (rights->addPermissions(this->rolesAmount, description.toStdString())){
-            qDebug() << "Nuevo rol:" << role;
+        if (rights->addPermissions(this->rolesAmount, description.toStdString())) {
+            qDebug() << "Permisos añadidos al rol:" << role;
         }
         loadRolesTable();
     }

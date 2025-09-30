@@ -132,3 +132,38 @@ std::vector<std::string> Security::splitUserInfo(const std::string userInfo)
 
     return result;
 }
+
+int Security::updateUser(QString oldUsername, QString newUsername, QString newRole) {
+    bool found = false;
+
+    for (auto &user : registeredUsers) {
+        if (user[0] == oldUsername.toStdString()) {
+            user[0] = newUsername.toStdString();
+            user[2] = newRole.toStdString();
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        qDebug() << "El usuario no existe.";
+        return -1;
+    }
+
+    std::string newContent;
+    for (const auto &u : registeredUsers) {
+        newContent += u[0] + ":" + u[1] + ":" + u[2] + "\n";
+    }
+
+    storage->writeFile(USERS_PATH, newContent);
+    return 0;
+}
+
+QString Security::getUserRole(const QString &username) {
+    for (const auto &user : registeredUsers) {
+        if (user[0] == username.toStdString()) {
+            return QString::fromStdString(user[2]);
+        }
+    }
+    return "";
+}

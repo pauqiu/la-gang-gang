@@ -14,9 +14,6 @@ int main(int argc, char *argv[])
     RightsValidation * rights = new RightsValidation(fs);
 
     sec->registerUser("Dylan", "123", "Admin");
-    rights->addRole(1, "Administrador");
-    rights->addPermissions(1, "read,write,delete,execute");
-
 
     if (!rights->initialize()) {
         std::cerr << "Error initializing Rights Validation system." << std::endl;

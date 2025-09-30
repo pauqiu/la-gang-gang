@@ -14,6 +14,7 @@ class addRoleWindow : public QDialog
 
     public:
         explicit addRoleWindow(QWidget *parent = nullptr);
+        addRoleWindow(const QString &role, const QString &description, QWidget *parent);
         ~addRoleWindow();
 
         QString getRole() const;

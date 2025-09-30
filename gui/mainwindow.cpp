@@ -13,6 +13,7 @@ MainWindow::MainWindow(Security * security, RightsValidation * rights, QWidget *
     ui->usernameMessage->setVisible(false);
     ui->passwordMessage->setVisible(false);
     ui->passwordHelp->setVisible(false);
+    ui->authErrorMessage->setVisible(false);
 }
 
 MainWindow::~MainWindow()
@@ -30,14 +31,18 @@ void MainWindow::on_logInButton_clicked()
         if (role >= 0) {
 
             qDebug() << "Login succesful!";
-
+            ui->authErrorMessage->setVisible(false);
             menuWindow *menu = new menuWindow(this->security, this->rights);
             menu->setLogInWindow(this);
             menu->setUsername(ui->usernameInput->text());
-            menu->setUserRole("Admin");
+            QString userRole = security->getUserRole(ui->usernameInput->text());
+            menu->setUserRole(userRole);
             menu->setUIByRole();
             menu->show();
             close();
+        }
+        else{
+            ui->authErrorMessage->setVisible(true);
         }
 
     } else{
