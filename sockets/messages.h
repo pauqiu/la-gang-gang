@@ -25,7 +25,7 @@ struct AuthMessage {
     std::string password;
     uint8_t failedTries = 0;
 
-    // Serializa la estructura a bytes
+    // Serializa a bytes
     std::vector<uint8_t> serialize() const {
         std::vector<uint8_t> data;
         data.push_back(id);
@@ -78,13 +78,11 @@ struct AuthResponse {
 };
 #pragma pack(pop)
 
-// --------------------------------------------------
 // AuthError - Respuesta de error de autenticación (ID 3)
 // Tamaño: 2 bytes (1 byte id + 1 byte error_code)
 // Error codes:
-//   - 301: Credenciales incorrectas
-//   - 302: Exceso de intentos de autenticación
-// --------------------------------------------------
+//   - 1: Credenciales incorrectas
+//   - 2: Exceso de intentos de autenticación
 #pragma pack(push, 1)
 struct AuthError {
     uint8_t message_id = MSG_AUTH_ERROR;     // 1 byte - ID fijo: 3
