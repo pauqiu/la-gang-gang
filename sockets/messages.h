@@ -8,6 +8,7 @@
 enum MessageType : uint8_t {
     MSG_AUTHENTICATION = 1,
     MSG_AUTH_RESPONSE  = 2,
+    MSG_AUTH_ERROR     = 3,
 };
 
 struct Message {
@@ -50,3 +51,59 @@ struct AuthMessage {
         return msg;
     }
 };
+
+// AuthResponse - Respuesta exitosa de autenticación (ID 2)
+// Tamaño: 34 bytes (1 byte id + 32 bytes token + 1 byte role)
+#pragma pack(push, 1)
+struct AuthResponse {
+    uint8_t message_id = MSG_AUTH_RESPONSE;  // 1 byte - ID fijo: 2
+    uint8_t token[32];                        // 32 bytes - Token de sesión
+    uint8_t role;                             // 1 byte - Rol del usuario (1-7)
+
+    // Serializa la estructura a bytes
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data(sizeof(AuthResponse));
+        std::memcpy(data.data(), this, sizeof(AuthResponse));
+        return data;
+    }
+
+    // Deserializa desde bytes
+    static AuthResponse deserialize(const std::vector<uint8_t>& buffer) {
+        AuthResponse msg;
+        if (buffer.size() >= sizeof(AuthResponse)) {
+            std::memcpy(&msg, buffer.data(), sizeof(AuthResponse));
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// --------------------------------------------------
+// AuthError - Respuesta de error de autenticación (ID 3)
+// Tamaño: 2 bytes (1 byte id + 1 byte error_code)
+// Error codes:
+//   - 301: Credenciales incorrectas
+//   - 302: Exceso de intentos de autenticación
+// --------------------------------------------------
+#pragma pack(push, 1)
+struct AuthError {
+    uint8_t message_id = MSG_AUTH_ERROR;     // 1 byte - ID fijo: 3
+    uint8_t error_code;                       // 1 byte - Código de error
+
+    // Serializa la estructura a bytes
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data(sizeof(AuthError));
+        std::memcpy(data.data(), this, sizeof(AuthError));
+        return data;
+    }
+
+    // Deserializa desde bytes
+    static AuthError deserialize(const std::vector<uint8_t>& buffer) {
+        AuthError msg;
+        if (buffer.size() >= sizeof(AuthError)) {
+            std::memcpy(&msg, buffer.data(), sizeof(AuthError));
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
