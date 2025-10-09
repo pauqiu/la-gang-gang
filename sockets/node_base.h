@@ -60,9 +60,10 @@ public:
             }
             buffer.resize(bytes);
             std::cout << "[Node] Recibidos " << bytes << " bytes, id=" << (int)buffer[0] << "\n";
-            dispatcher.dispatch(buffer);
-
-            close(client);
+            
+            dispatcher.dispatch(buffer, client);
+            
+            // Ya no se cierra el socket
         }
 
         close(server);
