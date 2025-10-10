@@ -8,15 +8,15 @@
 
 class NodeClient {
 public:
-    void sendAuthentication(const std::string& user, const std::string& pass, int tries = 0) {
+    bool sendAuthentication(const std::string& user, const std::string& pass, int tries = 0) {
         currentUsername = user; // Guardar username para validación posterior
         
         int sock = connectToAuthServer();
-        if (sock < 0) return;
+        if (sock < 0) return false;
 
         if (!sendAuthRequest(sock, user, pass, tries)) {
             close(sock);
-            return;
+            return false;
         }
 
         auto response = receiveAuthResponse(sock);
@@ -25,6 +25,7 @@ public:
         }
 
         close(sock);
+        return true;
     }
     
     bool validateSessionWithProxy() {

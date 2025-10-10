@@ -3,6 +3,7 @@
 #include "menuwindow.h"
 #include "../sockets/nodeClient.h"
 #include <QDebug>
+#include <QMessageBox>
 
 MainWindow::MainWindow(Security * security, RightsValidation * rights, QWidget *parent)
     : QMainWindow(parent)
@@ -10,6 +11,7 @@ MainWindow::MainWindow(Security * security, RightsValidation * rights, QWidget *
 {
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
+    ui->passwordInput->setEchoMode(QLineEdit::Password);
     ui->usernameMessage->setVisible(false);
     ui->passwordMessage->setVisible(false);
     ui->passwordHelp->setVisible(false);
@@ -39,12 +41,11 @@ void MainWindow::on_logInButton_clicked()
         ui->passwordMessage->setVisible(false);
     }
 
-    // CAMBIO: Usar NodeClient para autenticación remota
     NodeClient client;
-    client.sendAuthentication(
+    bool connectionResult = client.sendAuthentication(
         ui->usernameInput->text().toStdString(),
         ui->passwordInput->text().toStdString(),
-        0  // intentos fallidos
+        0
         );
 
     // Verificar respuesta del servidor
@@ -52,7 +53,7 @@ void MainWindow::on_logInButton_clicked()
         qDebug() << "Login successful!";
         ui->authErrorMessage->setVisible(false);
 
-        // Obtener rol del token (viene del servidor)
+        // Obtener rol del token
         uint8_t roleNumber = client.getRole();
         QString userRole = roleNumberToString(roleNumber);
 
@@ -65,11 +66,17 @@ void MainWindow::on_logInButton_clicked()
         menu->show();
         close();
     }
+    else if (!connectionResult){
+        QMessageBox::critical(this,
+                              "Error de conexión",
+                              "No se pudo conectar con el servidor de autenticación.\n");
+        qDebug() << "Fallo de conexión con el servidor de autenticación.";
+        return;
+    }
     else {
         // Mostrar error de autenticación
         qDebug() << "Login failed!";
         ui->authErrorMessage->setVisible(true);
-        ui->authErrorMessage->setText("Credenciales incorrectas");
     }
 }
 

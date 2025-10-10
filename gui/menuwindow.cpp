@@ -88,9 +88,9 @@ void menuWindow::setMenuActiveButton(int index)
 
     for (QPushButton* btn : buttons) {
         if (index == buttonIndex) {
-            btn->setStyleSheet("background-color: rgb(16, 84, 160); border-color: rgb(0, 68, 139);");
+            btn->setStyleSheet("background-color: rgb(16, 84, 160); border-color: rgb(0, 68, 139); color: rgb(255, 255, 255);");
         } else {
-            btn->setStyleSheet("background-color: rgb(0, 68, 139); border-color: rgb(0, 68, 139);");
+            btn->setStyleSheet("background-color: rgb(0, 68, 139); border-color: rgb(0, 68, 139); color: rgb(255, 255, 255);");
         }
         buttonIndex++;
     }
@@ -176,15 +176,9 @@ void menuWindow::setUIByRole()
 {
     ui->adminButton->setDisabled(true);
     ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
-    if (this->userRole == "admin" || this->userRole == "admin_general") {
+    if (this->userRole == "admin_general") {
         ui->adminButton->setDisabled(false);
         ui->adminButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
-        Role adminR("Admin", "Acceso total");
-        roles.append(adminR);
-        Role userR("User", "Acceso básico");
-        roles.append(userR);
-        Role guestR("Guest", "Solo lectura");
-        roles.append(guestR);
         loadRolesTable();
         loadUsersTable();
 
