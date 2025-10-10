@@ -26,20 +26,28 @@ Security::~Security(){}
 int Security::verifyUser(QString username, QString password)
 {
     std::vector<std::string> user = getUser(username);
-
     if (user.empty()) {
         qDebug() << "User not found";
         return -1;
     }
-
     if(!Encryptation::veifyPassword(password, user[1])) {
         qDebug() << "The password is incorrect";
         return -1;
     }
 
-    // TODO (@Paulette): Return role to the main window.
+    // CAMBIO: Retornar el rol del usuario (user[2] contiene el rol)
+    QString roleStr = QString::fromStdString(user[2]);
 
-    return 0;
+    // Convertir rol a int
+    if (roleStr == "admin_sistema") return 1;
+    if (roleStr == "tecnico_sensores") return 2;
+    if (roleStr == "oficial_seguridad") return 3;
+    if (roleStr == "supervisor_seguridad") return 4;
+    if (roleStr == "analista_negocios") return 5;
+    if (roleStr == "admin_general") return 6;
+    if (roleStr == "auditor") return 7;
+
+    return 0;  // Rol por defecto o desconocido
 }
 
 int Security::registerUser(QString username, QString password, QString role)

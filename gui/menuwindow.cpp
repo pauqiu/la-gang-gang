@@ -1,5 +1,5 @@
-#include "addUserWindow.h"
-#include "addRoleWindow.h"
+#include "adduserwindow.h"
+#include "addrolewindow.h"
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
 

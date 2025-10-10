@@ -24,6 +24,7 @@ private slots:
     void on_logInButton_clicked();
 
     void on_forgotPasswordButton_clicked();
+    QString roleNumberToString(int role);
 
 private:
     Ui::MainWindow *ui;
