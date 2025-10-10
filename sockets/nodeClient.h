@@ -4,10 +4,13 @@
 #include <iostream>
 #include <vector>
 #include <iomanip>
+#include <cstring>
 
 class NodeClient {
 public:
     void sendAuthentication(const std::string& user, const std::string& pass, int tries = 0) {
+        currentUsername = user; // Guardar username para validación posterior
+        
         int sock = connectToAuthServer();
         if (sock < 0) return;
 
@@ -23,12 +26,57 @@ public:
 
         close(sock);
     }
+    
+    bool validateSessionWithProxy() {
+        if (!hasValidToken()) {
+            std::cerr << "[Client] No hay token válido.\n";
+            return false;
+        }
+        
+        int sock = connectToProxy();
+        if (sock < 0) return false;
+        
+        if (!sendSessionValidate(sock)) {
+            close(sock);
+            return false;
+        }
+        
+        auto response = receiveResponse(sock);
+        bool isValid = false;
+        if (!response.empty()) {
+            isValid = processSessionResponse(response);
+        }
+        
+        close(sock);
+        return isValid;
+    }
+    
+    bool hasValidToken() const {
+        return tokenReceived;
+    }
+    
+    uint8_t getRole() const {
+        return currentRole;
+    }
 
 private:
+    uint8_t sessionToken[32] = {0};
+    uint8_t currentRole = 0;
+    bool tokenReceived = false;
+    std::string currentUsername;
+
     int connectToAuthServer() {
         int sock = connect_to("127.0.0.1", 5001);
         if (sock < 0) {
             std::cerr << "[Client] Error al conectar con Auth.\n";
+        }
+        return sock;
+    }
+    
+    int connectToProxy() {
+        int sock = connect_to("127.0.0.1", 5002);
+        if (sock < 0) {
+            std::cerr << "[Client] Error al conectar con Proxy.\n";
         }
         return sock;
     }
@@ -76,6 +124,11 @@ private:
     void handleAuthResponse(const std::vector<uint8_t>& data) {
         auto response = AuthResponse::deserialize(data);
         
+        // Guardar token y rol
+        std::memcpy(sessionToken, response.token, 32);
+        currentRole = response.role;
+        tokenReceived = true;
+        
         std::cout << "\nAUTENTICACIÓN EXITOSA\n";
         std::cout << "Rol asignado: " << (int)response.role << "\n";
         std::cout << "Token de sesión (hex): ";
@@ -102,7 +155,60 @@ private:
         switch (errorCode) {
             case 1: return "Credenciales incorrectas";
             case 2: return "Exceso de intentos de autenticación";
+            case 3: return "Token inválido o expirado";
             default: return "Error desconocido";
+        }
+    }
+    
+    bool sendSessionValidate(int sock) {
+        SessionValidate msg;
+        msg.message_id = MSG_SESSION_VALIDATE;
+        
+        // Copiar username (máximo 16 bytes)
+        std::memset(msg.username, 0, 16);
+        size_t len = std::min(currentUsername.length(), size_t(16));
+        std::memcpy(msg.username, currentUsername.c_str(), len);
+        
+        // Copiar token
+        std::memcpy(msg.token, sessionToken, 32);
+        
+        auto data = msg.serialize();
+        if (!send_message(sock, data.data(), data.size())) {
+            std::cerr << "[Client] Error al enviar validación de sesión.\n";
+            return false;
+        }
+        
+        std::cout << "[Client] Validación de sesión enviada al Proxy (user=" << currentUsername << ")...\n";
+        return true;
+    }
+    
+    std::vector<uint8_t> receiveResponse(int sock) {
+        std::vector<uint8_t> response(1024);
+        ssize_t bytes = recv_message(sock, response.data(), response.size());
+        
+        if (bytes <= 0) {
+            std::cerr << "[Client] Error al recibir respuesta.\n";
+            return {};
+        }
+        
+        response.resize(bytes);
+        return response;
+    }
+    
+    bool processSessionResponse(const std::vector<uint8_t>& response) {
+        if (response[0] == MSG_SESSION_OK) {
+            auto msg = SessionOk::deserialize(response);
+            std::cout << "\nSESIÓN VÁLIDA\n";
+            std::cout << "Acceso concedido con rol: " << (int)msg.role << "\n";
+            return true;
+        } else if (response[0] == MSG_SESSION_ERROR) {
+            auto msg = SessionError::deserialize(response);
+            std::cout << "\nSESIÓN INVÁLIDA\n";
+            std::cout << "Error: " << getErrorMessage(msg.error_code) << "\n\n";
+            return false;
+        } else {
+            std::cerr << "[Client] Respuesta desconocida del Proxy.\n";
+            return false;
         }
     }
 };

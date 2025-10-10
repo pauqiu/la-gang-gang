@@ -25,7 +25,7 @@ public:
         
         // Enviar respuesta
         if (credentialsValid) {
-            sendSuccessResponse(client_socket, userRole);
+            sendSuccessResponse(client_socket, msg.user, userRole);
         } else {
             sendErrorResponse(client_socket, errorCode);
         }
@@ -57,15 +57,37 @@ private:
         }
     }
 
-    void sendSuccessResponse(int client_socket, uint8_t role) {
+    void sendSuccessResponse(int client_socket, const std::string& username, uint8_t role) {
         AuthResponse response;
         response.message_id = MSG_AUTH_RESPONSE;
         response.role = role;
-        generateSessionToken(response.token); // cambiar por token de verdad
+        generateSessionToken(response.token);
         
+        // Enviar respuesta al cliente
         auto data = response.serialize();
         send_message(client_socket, data.data(), data.size());
-        std::cout << "[AuthNode] AuthResponse enviado (role=" << (int)role << ")\n";
+        std::cout << "[AuthNode] AuthResponse enviado al cliente (role=" << (int)role << ")\n";
+        
+        // Registrar token en el proxy
+        registerTokenWithProxy(username, response.token, role);
+    }
+    
+    void registerTokenWithProxy(const std::string& username, const uint8_t token[32], uint8_t role) {
+        TokenNotif tokenMsg;
+        tokenMsg.message_id = MSG_TOKEN_REGISTER;
+        std::memcpy(tokenMsg.token, token, 32);
+        
+        // Copiar username (máximo 16 bytes)
+        std::memset(tokenMsg.username, 0, 16);
+        size_t len = std::min(username.length(), size_t(16));
+        std::memcpy(tokenMsg.username, username.c_str(), len);
+        
+        tokenMsg.role = role;
+        
+        // Enviar token al proxy (puerto 5002)
+        auto data = tokenMsg.serialize();
+        sendTo("127.0.0.1", 5002, data);
+        std::cout << "[AuthNode] TokenNotif enviado a Proxy (user=" << username << ", role=" << (int)role << ")\n";
     }
 
     void sendErrorResponse(int client_socket, uint8_t errorCode) {
