@@ -85,6 +85,7 @@ set(SOCKETS_SOURCES
     sockets/nodeClient.h
     sockets/nodeAuth.h
     sockets/communication.h
+    sockets/nodeStorage.h
 )
 
 # =====================================
