@@ -129,6 +129,32 @@ target_include_directories(nodeAuthMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(nodeAuthMain PRIVATE sodium Qt${QT_VERSION_MAJOR}::Core)
 
 # =====================================
+# Ejecutable nodo Storage independiente
+# =====================================
+add_executable(nodeStorageMain
+    sockets/storageMain.cpp
+    src/filesystem.cpp
+)
+target_include_directories(nodeStorageMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(nodeStorageMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(nodeStorageMain PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
+# Cliente de prueba para Storage
+# =====================================
+add_executable(storageTestClient
+    sockets/storageTestClient.cpp
+    src/filesystem.cpp
+)
+target_include_directories(storageTestClient PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(storageTestClient PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(storageTestClient PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
 # Tests de filesystem (opcional)
 # =====================================
 add_executable(filesystem-tests

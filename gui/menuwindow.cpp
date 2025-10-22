@@ -16,6 +16,7 @@ menuWindow::menuWindow(Security * security, RightsValidation * rights, QWidget *
     ui->setupUi(this);
     this->setFixedSize(1100, 700);
     this->rolesAmount = 0;
+    ui->filterErrorMsg->setVisible(false);
 
     // Menu options
     ui->stackedWidget->setCurrentIndex(0);
@@ -307,3 +308,31 @@ void menuWindow::on_addRoleButton_clicked()
         loadRolesTable();
     }
 }
+
+void menuWindow::on_filterButton_clicked()
+{
+    ui->filterErrorMsg->setVisible(false);
+
+    if (ui->sensorIdInput->text().isEmpty()) {
+        ui->filterErrorMsg->setText("Fill all blanks");
+        ui->filterErrorMsg->setVisible(true);
+        return;
+    }
+
+    // Obtener las fechas como QDate
+    QDate startDate = ui->startDateInput->date();
+    QDate endDate = ui->endDateInput->date();
+
+    if (startDate <= endDate) {
+        // startDate.toString("yyyy-MM-dd")
+        // endDate.toString("yyyy-MM-dd");
+    } else {
+        ui->filterErrorMsg->setText("Incorrect dates");
+        ui->filterErrorMsg->setVisible(true);
+    }
+}
+
+void menuWindow::loadSensorData(uint8_t sensorId, const QString& startDate, const QString& endDate){
+
+}
+

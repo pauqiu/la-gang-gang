@@ -41,6 +41,9 @@ private slots:
 
     void on_addRoleButton_clicked();
 
+    void on_filterButton_clicked();
+    void loadSensorData(uint8_t sensorId, const QString& startDate, const QString& endDate);
+
 private:
     Ui::menuWindow *ui;
     MainWindow *logIn;

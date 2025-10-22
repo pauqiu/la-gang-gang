@@ -13,6 +13,13 @@ enum MessageType : uint8_t {
     MSG_SESSION_VALIDATE = 5, // Client -> Proxy: validar sesión con token
     MSG_SESSION_OK = 6,       // Proxy -> Client: sesión válida
     MSG_SESSION_ERROR = 7,    // Proxy -> Client: sesión inválida
+
+    MSG_STORAGE_SAVE = 9,           // Storage: guardar datos
+    MSG_STORAGE_RESPONSE = 10,      // Storage: confirmación
+    MSG_STORAGE_ERROR = 11,         // Storage: error
+    MSG_STORAGE_SYNC_REQUEST = 12,  // Storage: solicitud sincronización
+    MSG_STORAGE_SYNC_RESPONSE = 13, // Storage: respuesta sincronización
+    MSG_STORAGE_SYNC_ERROR = 14,    // Storage: error sincronización
 };
 
 struct Message {
@@ -201,6 +208,260 @@ struct SessionError {
         SessionError msg;
         if (buffer.size() >= sizeof(SessionError)) {
             std::memcpy(&msg, buffer.data(), sizeof(SessionError));
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// --------------------------------------------------
+// Mensaje de Storage
+// --------------------------------------------------
+
+// Estructura auxiliar para bloques de datos
+struct SensorDataBlock {
+    uint8_t sensorId;
+    uint64_t date;
+    uint64_t time;
+    uint8_t dataLength;
+    std::vector<uint8_t> data;
+};
+
+// StorageSave (ID 9)
+struct StorageSave {
+    uint8_t message_id = MSG_STORAGE_SAVE;
+    uint8_t sensorId;
+    uint64_t date;      // 8 bytes
+    uint64_t time;      // 8 bytes
+    uint8_t dataLength;
+    std::vector<uint8_t> data;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.push_back(sensorId);
+
+        // Serializar date (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((date >> (i * 8)) & 0xFF);
+        }
+
+        // Serializar time (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((time >> (i * 8)) & 0xFF);
+        }
+
+        result.push_back(dataLength);
+        result.insert(result.end(), data.begin(), data.end());
+
+        return result;
+    }
+
+    static StorageSave deserialize(const std::vector<uint8_t>& buffer) {
+        StorageSave msg;
+        size_t idx = 0;
+
+        msg.message_id = buffer[idx++];
+        msg.sensorId = buffer[idx++];
+
+        // Deserializar date
+        msg.date = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.date = (msg.date << 8) | buffer[idx++];
+        }
+
+        // Deserializar time
+        msg.time = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.time = (msg.time << 8) | buffer[idx++];
+        }
+
+        msg.dataLength = buffer[idx++];
+        msg.data.assign(buffer.begin() + idx, buffer.begin() + idx + msg.dataLength);
+
+        return msg;
+    }
+};
+
+// StorageResponse (ID 10)
+#pragma pack(push, 1)
+struct StorageResponse {
+    uint8_t message_id = MSG_STORAGE_RESPONSE;
+    uint8_t statusCode;  // 0: Done, 1: Error
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data(sizeof(StorageResponse));
+        std::memcpy(data.data(), this, sizeof(StorageResponse));
+        return data;
+    }
+
+    static StorageResponse deserialize(const std::vector<uint8_t>& buffer) {
+        StorageResponse msg;
+        if (buffer.size() >= sizeof(StorageResponse)) {
+            std::memcpy(&msg, buffer.data(), sizeof(StorageResponse));
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// StorageError (ID 11)
+#pragma pack(push, 1)
+struct StorageError {
+    uint8_t message_id = MSG_STORAGE_ERROR;
+    uint16_t errorCode;  // 401: Full, 402: Write failed, 403: Invalid data
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back((errorCode >> 8) & 0xFF);  // High byte
+        data.push_back(errorCode & 0xFF);         // Low byte
+        return data;
+    }
+
+    static StorageError deserialize(const std::vector<uint8_t>& buffer) {
+        StorageError msg;
+        if (buffer.size() >= 3) {
+            msg.message_id = buffer[0];
+            msg.errorCode = (buffer[1] << 8) | buffer[2];
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// StorageSyncRequest (ID 12)
+#pragma pack(push, 1)
+struct StorageSyncRequest {
+    uint8_t message_id = MSG_STORAGE_SYNC_REQUEST;
+    uint64_t startDate;
+    uint64_t endDate;
+    uint8_t sensorId;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+
+        // startDate
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((startDate >> (i * 8)) & 0xFF);
+        }
+
+        // endDate
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((endDate >> (i * 8)) & 0xFF);
+        }
+
+        result.push_back(sensorId);
+        return result;
+    }
+
+    static StorageSyncRequest deserialize(const std::vector<uint8_t>& buffer) {
+        StorageSyncRequest msg;
+        size_t idx = 0;
+
+        msg.message_id = buffer[idx++];
+
+        msg.startDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.startDate = (msg.startDate << 8) | buffer[idx++];
+        }
+
+        msg.endDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.endDate = (msg.endDate << 8) | buffer[idx++];
+        }
+
+        msg.sensorId = buffer[idx++];
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// StorageSyncResponse (ID 13)
+struct StorageSyncResponse {
+    uint8_t message_id = MSG_STORAGE_SYNC_RESPONSE;
+    uint8_t dataLength;
+    std::vector<SensorDataBlock> sensorDataBlocks;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.push_back(dataLength);
+
+        // Serializar cada bloque
+        for (const auto& block : sensorDataBlocks) {
+            result.push_back(block.sensorId);
+
+            // date
+            for (int i = 7; i >= 0; i--) {
+                result.push_back((block.date >> (i * 8)) & 0xFF);
+            }
+
+            // time
+            for (int i = 7; i >= 0; i--) {
+                result.push_back((block.time >> (i * 8)) & 0xFF);
+            }
+
+            result.push_back(block.dataLength);
+            result.insert(result.end(), block.data.begin(), block.data.end());
+        }
+
+        return result;
+    }
+
+    static StorageSyncResponse deserialize(const std::vector<uint8_t>& buffer) {
+        StorageSyncResponse msg;
+        size_t idx = 0;
+
+        msg.message_id = buffer[idx++];
+        msg.dataLength = buffer[idx++];
+
+        for (int i = 0; i < msg.dataLength && idx < buffer.size(); i++) {
+            SensorDataBlock block;
+
+            block.sensorId = buffer[idx++];
+
+            block.date = 0;
+            for (int j = 0; j < 8; j++) {
+                block.date = (block.date << 8) | buffer[idx++];
+            }
+
+            block.time = 0;
+            for (int j = 0; j < 8; j++) {
+                block.time = (block.time << 8) | buffer[idx++];
+            }
+
+            block.dataLength = buffer[idx++];
+            block.data.assign(buffer.begin() + idx, buffer.begin() + idx + block.dataLength);
+            idx += block.dataLength;
+
+            msg.sensorDataBlocks.push_back(block);
+        }
+
+        return msg;
+    }
+};
+
+// StorageSyncError (ID 14)
+#pragma pack(push, 1)
+struct StorageSyncError {
+    uint8_t message_id = MSG_STORAGE_SYNC_ERROR;
+    uint16_t errorCode;  // 404: Data not found
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back((errorCode >> 8) & 0xFF);
+        data.push_back(errorCode & 0xFF);
+        return data;
+    }
+
+    static StorageSyncError deserialize(const std::vector<uint8_t>& buffer) {
+        StorageSyncError msg;
+        if (buffer.size() >= 3) {
+            msg.message_id = buffer[0];
+            msg.errorCode = (buffer[1] << 8) | buffer[2];
         }
         return msg;
     }

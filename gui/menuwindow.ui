@@ -52,9 +52,9 @@ font: 12pt &quot;Segoe UI&quot;;</string>
    <widget class="QLabel" name="welcomeMessage">
     <property name="geometry">
      <rect>
-      <x>40</x>
+      <x>0</x>
       <y>30</y>
-      <width>141</width>
+      <width>221</width>
       <height>41</height>
      </rect>
     </property>
@@ -286,7 +286,233 @@ font: 600 11pt &quot;Segoe UI&quot;;</string>
        </rect>
       </property>
       <widget class="QWidget" name="overviewPage"/>
-      <widget class="QWidget" name="activityPage"/>
+      <widget class="QWidget" name="activityPage">
+       <widget class="QScrollArea" name="scrollArea_2">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>40</y>
+          <width>821</width>
+          <height>521</height>
+         </rect>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents_3">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>819</width>
+           <height>519</height>
+          </rect>
+         </property>
+         <widget class="QPushButton" name="filterButton">
+          <property name="geometry">
+           <rect>
+            <x>600</x>
+            <y>40</y>
+            <width>121</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(0, 0, 0);
+border-color: rgb(0, 0, 0);</string>
+          </property>
+          <property name="text">
+           <string>Filter</string>
+          </property>
+         </widget>
+         <widget class="QTableWidget" name="sensorTable">
+          <property name="geometry">
+           <rect>
+            <x>80</x>
+            <y>90</y>
+            <width>641</width>
+            <height>391</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(0, 0, 0);</string>
+          </property>
+          <column>
+           <property name="text">
+            <string>Date</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Time</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Data</string>
+           </property>
+          </column>
+         </widget>
+         <widget class="QDateEdit" name="startDateInput">
+          <property name="geometry">
+           <rect>
+            <x>360</x>
+            <y>40</y>
+            <width>110</width>
+            <height>28</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(0, 0, 0);</string>
+          </property>
+          <property name="dateTime">
+           <datetime>
+            <hour>0</hour>
+            <minute>0</minute>
+            <second>0</second>
+            <year>2025</year>
+            <month>1</month>
+            <day>2</day>
+           </datetime>
+          </property>
+          <property name="maximumDate">
+           <date>
+            <year>2025</year>
+            <month>12</month>
+            <day>31</day>
+           </date>
+          </property>
+          <property name="minimumDate">
+           <date>
+            <year>2025</year>
+            <month>1</month>
+            <day>1</day>
+           </date>
+          </property>
+          <property name="calendarPopup">
+           <bool>true</bool>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="sensorIdInput">
+          <property name="geometry">
+           <rect>
+            <x>240</x>
+            <y>40</y>
+            <width>113</width>
+            <height>27</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_2">
+          <property name="geometry">
+           <rect>
+            <x>240</x>
+            <y>20</y>
+            <width>70</width>
+            <height>19</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font: 9pt &quot;Adwaita Sans&quot;;</string>
+          </property>
+          <property name="text">
+           <string>Sensor ID</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_3">
+          <property name="geometry">
+           <rect>
+            <x>360</x>
+            <y>20</y>
+            <width>70</width>
+            <height>19</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font: 9pt &quot;Adwaita Sans&quot;;</string>
+          </property>
+          <property name="text">
+           <string>Start Date</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_4">
+          <property name="geometry">
+           <rect>
+            <x>480</x>
+            <y>20</y>
+            <width>70</width>
+            <height>19</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font: 9pt &quot;Adwaita Sans&quot;;</string>
+          </property>
+          <property name="text">
+           <string>End Date</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="filterErrorMsg">
+          <property name="geometry">
+           <rect>
+            <x>610</x>
+            <y>20</y>
+            <width>121</width>
+            <height>19</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font: 9pt &quot;Adwaita Sans&quot;;</string>
+          </property>
+          <property name="text">
+           <string>Please fill all labels</string>
+          </property>
+         </widget>
+         <widget class="QDateEdit" name="endDateInput">
+          <property name="geometry">
+           <rect>
+            <x>480</x>
+            <y>40</y>
+            <width>110</width>
+            <height>28</height>
+           </rect>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: rgb(0, 0, 0);</string>
+          </property>
+          <property name="dateTime">
+           <datetime>
+            <hour>6</hour>
+            <minute>0</minute>
+            <second>0</second>
+            <year>2025</year>
+            <month>1</month>
+            <day>1</day>
+           </datetime>
+          </property>
+          <property name="maximumDate">
+           <date>
+            <year>2025</year>
+            <month>12</month>
+            <day>31</day>
+           </date>
+          </property>
+          <property name="minimumDate">
+           <date>
+            <year>2025</year>
+            <month>1</month>
+            <day>1</day>
+           </date>
+          </property>
+          <property name="calendarPopup">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </widget>
+       </widget>
+      </widget>
       <widget class="QWidget" name="reportsPage"/>
       <widget class="QWidget" name="adminPage">
        <widget class="QScrollArea" name="scrollArea">
