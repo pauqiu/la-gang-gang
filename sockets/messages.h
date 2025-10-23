@@ -221,14 +221,15 @@ struct SessionError {
 
 // Mensajes de consulta de datos (Client - Proxy)
 
-// DataRequest - Cliente solicita datos de un sensor específico por fecha (ID 8)
-// Tamaño: 57 bytes (1 byte id + 32 bytes token + 16 bytes sensor_id + 8 bytes date)
+// DataRequest - Cliente solicita datos de un sensor en un rango de fechas (ID 8)
+// Tamaño: 65 bytes (1 byte id + 32 bytes token + 16 bytes sensor_id + 8 bytes startDate + 8 bytes endDate)
 #pragma pack(push, 1)
 struct DataRequest {
     uint8_t message_id = MSG_DATA_REQUEST;
     uint8_t token[32];     // Token de sesión para validación
     char sensor_id[16];    // ID del sensor solicitado (ej: "DHT11A", "PIR001")
-    uint64_t date;         // Fecha en formato YYYYMMDD (ej: 20250925)
+    uint64_t startDate;    // Fecha inicio en formato YYYYMMDD (ej: 20250925)
+    uint64_t endDate;      // Fecha fin en formato YYYYMMDD (ej: 20250925)
 
     std::vector<uint8_t> serialize() const {
         std::vector<uint8_t> result;
@@ -240,9 +241,14 @@ struct DataRequest {
         // Sensor ID (16 bytes)
         result.insert(result.end(), sensor_id, sensor_id + 16);
         
-        // Date (8 bytes, big-endian)
+        // StartDate (8 bytes, big-endian)
         for (int i = 7; i >= 0; i--) {
-            result.push_back((date >> (i * 8)) & 0xFF);
+            result.push_back((startDate >> (i * 8)) & 0xFF);
+        }
+        
+        // EndDate (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((endDate >> (i * 8)) & 0xFF);
         }
         
         return result;
@@ -262,10 +268,72 @@ struct DataRequest {
         std::memcpy(msg.sensor_id, &buffer[idx], 16);
         idx += 16;
         
-        // Date (8 bytes)
-        msg.date = 0;
+        // StartDate (8 bytes)
+        msg.startDate = 0;
         for (int i = 0; i < 8; i++) {
-            msg.date = (msg.date << 8) | buffer[idx++];
+            msg.startDate = (msg.startDate << 8) | buffer[idx++];
+        }
+        
+        // EndDate (8 bytes)
+        msg.endDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.endDate = (msg.endDate << 8) | buffer[idx++];
+        }
+        
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// DataRequestWithoutToken - Proxy envía al Storage (sin token)
+// Tamaño: 33 bytes (1 byte id + 16 bytes sensor_id + 8 bytes startDate + 8 bytes endDate)
+#pragma pack(push, 1)
+struct DataRequestWithoutToken {
+    uint8_t message_id = MSG_DATA_REQUEST;
+    char sensor_id[16];    // ID del sensor solicitado (ej: "DHT11A", "PIR001")
+    uint64_t startDate;    // Fecha inicio en formato YYYYMMDD (ej: 20250925)
+    uint64_t endDate;      // Fecha fin en formato YYYYMMDD (ej: 20250925)
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        
+        // Sensor ID (16 bytes)
+        result.insert(result.end(), sensor_id, sensor_id + 16);
+        
+        // StartDate (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((startDate >> (i * 8)) & 0xFF);
+        }
+        
+        // EndDate (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((endDate >> (i * 8)) & 0xFF);
+        }
+        
+        return result;
+    }
+
+    static DataRequestWithoutToken deserialize(const std::vector<uint8_t>& buffer) {
+        DataRequestWithoutToken msg;
+        size_t idx = 0;
+        
+        msg.message_id = buffer[idx++];
+        
+        // Sensor ID (16 bytes)
+        std::memcpy(msg.sensor_id, &buffer[idx], 16);
+        idx += 16;
+        
+        // StartDate (8 bytes)
+        msg.startDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.startDate = (msg.startDate << 8) | buffer[idx++];
+        }
+        
+        // EndDate (8 bytes)
+        msg.endDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.endDate = (msg.endDate << 8) | buffer[idx++];
         }
         
         return msg;
