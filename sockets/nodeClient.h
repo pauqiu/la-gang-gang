@@ -85,8 +85,10 @@ public:
         return sensors;
     }
     
-    // Solicitar datos de un sensor específico en una fecha
-    std::vector<SensorEntry> requestSensorData(const std::string& sensorId, uint64_t date) {
+    // Solicitar datos de un sensor específico en un rango de fechas
+    std::vector<SensorEntry> requestSensorData(const std::string& sensorId, 
+                                                uint64_t startDate, 
+                                                uint64_t endDate) {
         if (!hasValidToken()) {
             std::cerr << "[Client] No hay token válido. Autentíquese primero.\n";
             return {};
@@ -100,7 +102,7 @@ public:
         int sock = connectToProxy();
         if (sock < 0) return {};
         
-        if (!sendDataRequest(sock, sensorId, date)) {
+        if (!sendDataRequest(sock, sensorId, startDate, endDate)) {
             close(sock);
             return {};
         }
@@ -287,7 +289,8 @@ private:
     }
     
     // Enviar solicitud de datos de sensor específico
-    bool sendDataRequest(int sock, const std::string& sensorId, uint64_t date) {
+    bool sendDataRequest(int sock, const std::string& sensorId, 
+                        uint64_t startDate, uint64_t endDate) {
         DataRequest msg;
         msg.message_id = MSG_DATA_REQUEST;
         
@@ -299,8 +302,9 @@ private:
         size_t len = std::min(sensorId.length(), size_t(16));
         std::memcpy(msg.sensor_id, sensorId.c_str(), len);
         
-        // Asignar fecha
-        msg.date = date;
+        // Asignar fechas
+        msg.startDate = startDate;
+        msg.endDate = endDate;
         
         auto data = msg.serialize();
         if (!send_message(sock, data.data(), data.size())) {
@@ -309,7 +313,7 @@ private:
         }
         
         std::cout << "[Client] Solicitud de datos enviada (sensor=" << sensorId 
-                  << ", date=" << date << ")...\n";
+                  << ", startDate=" << startDate << ", endDate=" << endDate << ")...\n";
         return true;
     }
     
