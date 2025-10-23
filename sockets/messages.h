@@ -22,6 +22,8 @@ enum MessageType : uint8_t {
     MSG_STORAGE_SYNC_RESPONSE = 13, // Storage: respuesta sincronización
     MSG_STORAGE_SYNC_ERROR = 14,    // Storage: error sincronización
     MSG_DATA_RESPONSE = 15,          // Proxy -> Client: respuesta con datos de sensores
+    MSG_LIST_SENSOR_REQUEST = 16,    // Client -> Proxy: solicitud de lista de sensores
+    MSG_LIST_SENSOR_RESPONSE = 17,   // Proxy -> Client: respuesta con lista de sensores
 };
 
 struct Message {
@@ -216,16 +218,15 @@ struct SessionError {
 };
 #pragma pack(pop)
 
-// --------------------------------------------------
-// Mensajes de consulta de datos (Client <-> Proxy)
-// --------------------------------------------------
+// Mensajes de consulta de datos (Client - Proxy)
 
-// DataRequest - Cliente solicita datos de sensores por fecha (ID 8)
-// Tamaño: 41 bytes (1 byte id + 32 bytes token + 8 bytes date)
+// DataRequest - Cliente solicita datos de un sensor específico por fecha (ID 8)
+// Tamaño: 57 bytes (1 byte id + 32 bytes token + 16 bytes sensor_id + 8 bytes date)
 #pragma pack(push, 1)
 struct DataRequest {
     uint8_t message_id = MSG_DATA_REQUEST;
     uint8_t token[32];     // Token de sesión para validación
+    char sensor_id[16];    // ID del sensor solicitado (ej: "DHT11A", "PIR001")
     uint64_t date;         // Fecha en formato YYYYMMDD (ej: 20250925)
 
     std::vector<uint8_t> serialize() const {
@@ -234,6 +235,9 @@ struct DataRequest {
         
         // Token (32 bytes)
         result.insert(result.end(), token, token + 32);
+        
+        // Sensor ID (16 bytes)
+        result.insert(result.end(), sensor_id, sensor_id + 16);
         
         // Date (8 bytes, big-endian)
         for (int i = 7; i >= 0; i--) {
@@ -252,6 +256,10 @@ struct DataRequest {
         // Token (32 bytes)
         std::memcpy(msg.token, &buffer[idx], 32);
         idx += 32;
+        
+        // Sensor ID (16 bytes)
+        std::memcpy(msg.sensor_id, &buffer[idx], 16);
+        idx += 16;
         
         // Date (8 bytes)
         msg.date = 0;
@@ -292,17 +300,17 @@ struct DataResponse {
             // sensor_id (16 bytes)
             result.insert(result.end(), entry.sensor_id, entry.sensor_id + 16);
             
-            // date (8 bytes, big-endian)
+            // date (8 bytes)
             for (int i = 7; i >= 0; i--) {
                 result.push_back((entry.date >> (i * 8)) & 0xFF);
             }
             
-            // time (8 bytes, big-endian)
+            // time (8 bytes)
             for (int i = 7; i >= 0; i--) {
                 result.push_back((entry.time >> (i * 8)) & 0xFF);
             }
             
-            // data_value (4 bytes, float)
+            // data_value (4 bytes)
             uint32_t floatBits;
             std::memcpy(&floatBits, &entry.data_value, sizeof(float));
             for (int i = 3; i >= 0; i--) {
@@ -342,7 +350,7 @@ struct DataResponse {
                 entry.time = (entry.time << 8) | buffer[idx++];
             }
             
-            // data_value (4 bytes, float)
+            // data_value (4 bytes)
             uint32_t floatBits = 0;
             for (int j = 0; j < 4; j++) {
                 floatBits = (floatBits << 8) | buffer[idx++];
@@ -354,6 +362,80 @@ struct DataResponse {
             idx += 8;
             
             msg.entries.push_back(entry);
+        }
+        
+        return msg;
+    }
+};
+
+// Mensajes de lista de sensores (Client <-> Proxy)
+
+// ListSensorRequest - Cliente solicita lista de sensores disponibles (ID 16)
+// Tamaño: 33 bytes (1 byte id + 32 bytes token)
+#pragma pack(push, 1)
+struct ListSensorRequest {
+    uint8_t message_id = MSG_LIST_SENSOR_REQUEST;
+    uint8_t token[32];     // Token de sesión para validación
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        
+        // Token (32 bytes)
+        result.insert(result.end(), token, token + 32);
+        
+        return result;
+    }
+
+    static ListSensorRequest deserialize(const std::vector<uint8_t>& buffer) {
+        ListSensorRequest msg;
+        size_t idx = 0;
+        
+        msg.message_id = buffer[idx++];
+        
+        // Token (32 bytes)
+        if (buffer.size() >= 33) {
+            std::memcpy(msg.token, &buffer[idx], 32);
+        }
+        
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// ListSensorResponse - Proxy responde con lista de sensores (ID 17)
+// Tamaño variable: 2 bytes header + (16 bytes * sensorCount)
+struct ListSensorResponse {
+    uint8_t message_id = MSG_LIST_SENSOR_RESPONSE;
+    uint8_t sensorCount;   // Número de sensores disponibles
+    std::vector<std::array<char, 16>> sensorIds;  // Lista de IDs de sensores
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.push_back(sensorCount);
+        
+        // Serializar cada sensor ID (16 bytes cada uno)
+        for (const auto& sensorId : sensorIds) {
+            result.insert(result.end(), sensorId.begin(), sensorId.end());
+        }
+        
+        return result;
+    }
+
+    static ListSensorResponse deserialize(const std::vector<uint8_t>& buffer) {
+        ListSensorResponse msg;
+        size_t idx = 0;
+        
+        msg.message_id = buffer[idx++];
+        msg.sensorCount = buffer[idx++];
+        
+        // Deserializar cada sensor ID
+        for (int i = 0; i < msg.sensorCount && idx + 16 <= buffer.size(); i++) {
+            std::array<char, 16> sensorId;
+            std::memcpy(sensorId.data(), &buffer[idx], 16);
+            idx += 16;
+            msg.sensorIds.push_back(sensorId);
         }
         
         return msg;
