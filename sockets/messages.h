@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <cstring>
+#include <array>
 #include <cstdint>
 
 // Tipo de mensaje
