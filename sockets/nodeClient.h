@@ -59,6 +59,61 @@ public:
     uint8_t getRole() const {
         return currentRole;
     }
+    
+    // Solicitar lista de sensores disponibles
+    std::vector<std::string> requestSensorList() {
+        if (!hasValidToken()) {
+            std::cerr << "[Client] No hay token válido.\n";
+            return {};
+        }
+        
+        int sock = connectToProxy();
+        if (sock < 0) return {};
+        
+        if (!sendListSensorRequest(sock)) {
+            close(sock);
+            return {};
+        }
+        
+        auto response = receiveResponse(sock);
+        std::vector<std::string> sensors;
+        if (!response.empty()) {
+            sensors = processListSensorResponse(response);
+        }
+        
+        close(sock);
+        return sensors;
+    }
+    
+    // Solicitar datos de un sensor específico en una fecha
+    std::vector<SensorEntry> requestSensorData(const std::string& sensorId, uint64_t date) {
+        if (!hasValidToken()) {
+            std::cerr << "[Client] No hay token válido. Autentíquese primero.\n";
+            return {};
+        }
+        
+        if (sensorId.empty() || sensorId.length() > 16) {
+            std::cerr << "[Client] Sensor ID inválido.\n";
+            return {};
+        }
+        
+        int sock = connectToProxy();
+        if (sock < 0) return {};
+        
+        if (!sendDataRequest(sock, sensorId, date)) {
+            close(sock);
+            return {};
+        }
+        
+        auto response = receiveResponse(sock);
+        std::vector<SensorEntry> entries;
+        if (!response.empty()) {
+            entries = processDataResponse(response);
+        }
+        
+        close(sock);
+        return entries;
+    }
 
 private:
     uint8_t sessionToken[32] = {0};
@@ -211,5 +266,121 @@ private:
             std::cerr << "[Client] Respuesta desconocida del Proxy.\n";
             return false;
         }
+    }
+    
+    // Enviar solicitud de lista de sensores
+    bool sendListSensorRequest(int sock) {
+        ListSensorRequest msg;
+        msg.message_id = MSG_LIST_SENSOR_REQUEST;
+        
+        // Copiar token
+        std::memcpy(msg.token, sessionToken, 32);
+        
+        auto data = msg.serialize();
+        if (!send_message(sock, data.data(), data.size())) {
+            std::cerr << "[Client] Error al enviar solicitud de lista de sensores.\n";
+            return false;
+        }
+        
+        std::cout << "[Client] Solicitud de lista de sensores enviada al Proxy...\n";
+        return true;
+    }
+    
+    // Enviar solicitud de datos de sensor específico
+    bool sendDataRequest(int sock, const std::string& sensorId, uint64_t date) {
+        DataRequest msg;
+        msg.message_id = MSG_DATA_REQUEST;
+        
+        // Copiar token
+        std::memcpy(msg.token, sessionToken, 32);
+        
+        // Copiar sensor ID (máximo 16 bytes)
+        std::memset(msg.sensor_id, 0, 16);
+        size_t len = std::min(sensorId.length(), size_t(16));
+        std::memcpy(msg.sensor_id, sensorId.c_str(), len);
+        
+        // Asignar fecha
+        msg.date = date;
+        
+        auto data = msg.serialize();
+        if (!send_message(sock, data.data(), data.size())) {
+            std::cerr << "[Client] Error al enviar solicitud de datos.\n";
+            return false;
+        }
+        
+        std::cout << "[Client] Solicitud de datos enviada (sensor=" << sensorId 
+                  << ", date=" << date << ")...\n";
+        return true;
+    }
+    
+    // Procesar respuesta de lista de sensores
+    std::vector<std::string> processListSensorResponse(const std::vector<uint8_t>& response) {
+        std::vector<std::string> sensors;
+        
+        if (response[0] != MSG_LIST_SENSOR_RESPONSE) {
+            std::cerr << "[Client] Respuesta inesperada (ID=" << (int)response[0] << ")\n";
+            return sensors;
+        }
+        
+        auto msg = ListSensorResponse::deserialize(response);
+        
+        std::cout << "\nLISTA DE SENSORES DISPONIBLES (" << (int)msg.sensorCount << "):\n";
+        for (const auto& sensorId : msg.sensorIds) {
+            std::string sensor(sensorId.data(), strnlen(sensorId.data(), 16));
+            sensors.push_back(sensor);
+            std::cout << "  - " << sensor << "\n";
+        }
+        std::cout << "\n";
+        
+        return sensors;
+    }
+    
+    // Procesar respuesta de datos de sensor
+    std::vector<SensorEntry> processDataResponse(const std::vector<uint8_t>& response) {
+        std::vector<SensorEntry> entries;
+        
+        if (response[0] != MSG_DATA_RESPONSE) {
+            std::cerr << "[Client] Respuesta inesperada (ID=" << (int)response[0] << ")\n";
+            return entries;
+        }
+        
+        auto msg = DataResponse::deserialize(response);
+        
+        std::cout << "\nDATOS DEL SENSOR (" << (int)msg.entriesCount << " entradas):\n";
+        std::cout << std::string(80, '-') << "\n";
+        std::cout << std::left << std::setw(18) << "Timestamp" 
+                  << std::setw(18) << "Sensor ID"
+                  << std::setw(15) << "Data Value"
+                  << std::setw(10) << "Status" << "\n";
+        std::cout << std::string(80, '-') << "\n";
+        
+        for (const auto& entry : msg.entries) {
+            // Formatear timestamp
+            std::string dateStr = std::to_string(entry.date);
+            std::string timeStr = std::to_string(entry.time);
+            
+            // Padding para time (HHMMSS)
+            while (timeStr.length() < 6) timeStr = "0" + timeStr;
+            
+            std::string timestamp = dateStr.substr(0, 4) + "-" + 
+                                   dateStr.substr(4, 2) + "-" + 
+                                   dateStr.substr(6, 2) + " " +
+                                   timeStr.substr(0, 2) + ":" + 
+                                   timeStr.substr(2, 2) + ":" + 
+                                   timeStr.substr(4, 2);
+            
+            std::string sensorId(entry.sensor_id, strnlen(entry.sensor_id, 16));
+            std::string status(entry.status, strnlen(entry.status, 8));
+            
+            std::cout << std::left << std::setw(18) << timestamp
+                      << std::setw(18) << sensorId
+                      << std::setw(15) << entry.data_value
+                      << std::setw(10) << status << "\n";
+            
+            entries.push_back(entry);
+        }
+        std::cout << std::string(80, '-') << "\n\n";
+        
+        return entries;
     }
 };
