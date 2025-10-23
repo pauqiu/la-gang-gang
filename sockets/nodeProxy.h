@@ -18,6 +18,16 @@ public:
             [this](const std::vector<uint8_t>& buf, int client_socket) { 
                 onSessionValidate(buf, client_socket); 
             });
+        
+        dispatcher.registerHandler(MSG_LIST_SENSOR_REQUEST,
+            [this](const std::vector<uint8_t>& buf, int client_socket) {
+                onListSensorRequest(buf, client_socket);
+            });
+        
+        dispatcher.registerHandler(MSG_DATA_REQUEST,
+            [this](const std::vector<uint8_t>& buf, int client_socket) {
+                onDataRequest(buf, client_socket);
+            });
     }
 
 private:
@@ -116,5 +126,134 @@ private:
             result += buf;
         }
         return result;
+    }
+    
+    // Validar token sin username (busca en todos los tokens)
+    bool validateToken(const uint8_t token[32], std::string& outUsername) {
+        for (const auto& pair : validTokens) {
+            if (std::memcmp(pair.second.token.data(), token, 32) == 0) {
+                outUsername = pair.first;
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // Handler para solicitud de lista de sensores
+    void onListSensorRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto msg = ListSensorRequest::deserialize(buf);
+        
+        std::cout << "[Proxy] ListSensorRequest recibido\n";
+        
+        // Validar token
+        std::string username;
+        if (!validateToken(msg.token, username)) {
+            std::cout << "[Proxy] Token inválido, rechazando solicitud\n";
+            sendSessionError(client_socket, 3);
+            close(client_socket);
+            return;
+        }
+        
+        std::cout << "[Proxy] Token válido para usuario: " << username << "\n";
+        
+        // TODO: Consultar storage para obtener lista real de sensores
+        // Por ahora, respuesta vacía o hardcoded
+        ListSensorResponse response;
+        response.message_id = MSG_LIST_SENSOR_RESPONSE;
+        response.sensorCount = 0;
+        
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+        std::cout << "[Proxy] ListSensorResponse enviado\n";
+        
+        close(client_socket);
+    }
+    
+    // Handler para solicitud de datos de sensor
+    void onDataRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        // 1. Deserializar mensaje del cliente
+        auto clientMsg = DataRequest::deserialize(buf);
+        
+        std::string sensorId(clientMsg.sensor_id, strnlen(clientMsg.sensor_id, 16));
+        std::cout << "[Proxy] DataRequest recibido - Sensor: " << sensorId 
+                  << ", StartDate: " << clientMsg.startDate 
+                  << ", EndDate: " << clientMsg.endDate << "\n";
+        
+        // 2. Validar token
+        std::string username;
+        if (!validateToken(clientMsg.token, username)) {
+            std::cout << "[Proxy] Token inválido, rechazando solicitud\n";
+            sendSessionError(client_socket, 3);
+            close(client_socket);
+            return;
+        }
+        
+        std::cout << "[Proxy] Token válido para usuario: " << username << "\n";
+        
+        // 3. Crear mensaje sin token para storage
+        DataRequestWithoutToken storageMsg = createStorageRequest(clientMsg);
+        
+        // 4. Enviar al storage y obtener respuesta
+        std::vector<uint8_t> storageResponse = queryStorage(storageMsg);
+        
+        // 5. Reenviar respuesta al cliente
+        if (!storageResponse.empty()) {
+            send_message(client_socket, storageResponse.data(), storageResponse.size());
+            std::cout << "[Proxy] Respuesta reenviada al cliente\n";
+        } else {
+            std::cerr << "[Proxy] Error obteniendo respuesta del storage\n";
+        }
+        
+        close(client_socket);
+    }
+    
+    // Crear mensaje sin token para storage
+    DataRequestWithoutToken createStorageRequest(const DataRequest& clientMsg) {
+        DataRequestWithoutToken storageMsg;
+        storageMsg.message_id = MSG_DATA_REQUEST;
+        
+        // Copiar sensor_id
+        std::memcpy(storageMsg.sensor_id, clientMsg.sensor_id, 16);
+        
+        // Copiar fechas
+        storageMsg.startDate = clientMsg.startDate;
+        storageMsg.endDate = clientMsg.endDate;
+        
+        return storageMsg;
+    }
+    
+    // Consultar storage y obtener respuesta
+    std::vector<uint8_t> queryStorage(const DataRequestWithoutToken& request) {
+        std::cout << "[Proxy] Enviando DataRequestWithoutToken al storage (sin token)\n";
+        
+        // Serializar y enviar al storage
+        auto requestData = request.serialize();
+        int storageSock = connect_to("127.0.0.1", 5003);
+        
+        if (storageSock < 0) {
+            std::cerr << "[Proxy] Error conectando con Storage\n";
+            return {};
+        }
+        
+        if (!send_message(storageSock, requestData.data(), requestData.size())) {
+            std::cerr << "[Proxy] Error enviando mensaje al Storage\n";
+            close(storageSock);
+            return {};
+        }
+        
+        // Recibir respuesta del storage
+        std::vector<uint8_t> response(8192);
+        ssize_t bytes = recv_message(storageSock, response.data(), response.size());
+        close(storageSock);
+        
+        if (bytes <= 0) {
+            std::cerr << "[Proxy] Error recibiendo respuesta del Storage\n";
+            return {};
+        }
+        
+        response.resize(bytes);
+        std::cout << "[Proxy] Respuesta recibida del storage (" << bytes << " bytes)\n";
+        
+        return response;
     }
 };
