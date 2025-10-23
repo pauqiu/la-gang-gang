@@ -13,6 +13,7 @@ enum MessageType : uint8_t {
     MSG_SESSION_VALIDATE = 5, // Client -> Proxy: validar sesión con token
     MSG_SESSION_OK = 6,       // Proxy -> Client: sesión válida
     MSG_SESSION_ERROR = 7,    // Proxy -> Client: sesión inválida
+    MSG_DATA_REQUEST = 8,     // Client -> Proxy: solicitud de datos de sensores
 
     MSG_STORAGE_SAVE = 9,           // Storage: guardar datos
     MSG_STORAGE_RESPONSE = 10,      // Storage: confirmación
@@ -20,6 +21,7 @@ enum MessageType : uint8_t {
     MSG_STORAGE_SYNC_REQUEST = 12,  // Storage: solicitud sincronización
     MSG_STORAGE_SYNC_RESPONSE = 13, // Storage: respuesta sincronización
     MSG_STORAGE_SYNC_ERROR = 14,    // Storage: error sincronización
+    MSG_DATA_RESPONSE = 15,          // Proxy -> Client: respuesta con datos de sensores
 };
 
 struct Message {
@@ -213,6 +215,150 @@ struct SessionError {
     }
 };
 #pragma pack(pop)
+
+// --------------------------------------------------
+// Mensajes de consulta de datos (Client <-> Proxy)
+// --------------------------------------------------
+
+// DataRequest - Cliente solicita datos de sensores por fecha (ID 8)
+// Tamaño: 41 bytes (1 byte id + 32 bytes token + 8 bytes date)
+#pragma pack(push, 1)
+struct DataRequest {
+    uint8_t message_id = MSG_DATA_REQUEST;
+    uint8_t token[32];     // Token de sesión para validación
+    uint64_t date;         // Fecha en formato YYYYMMDD (ej: 20250925)
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        
+        // Token (32 bytes)
+        result.insert(result.end(), token, token + 32);
+        
+        // Date (8 bytes, big-endian)
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((date >> (i * 8)) & 0xFF);
+        }
+        
+        return result;
+    }
+
+    static DataRequest deserialize(const std::vector<uint8_t>& buffer) {
+        DataRequest msg;
+        size_t idx = 0;
+        
+        msg.message_id = buffer[idx++];
+        
+        // Token (32 bytes)
+        std::memcpy(msg.token, &buffer[idx], 32);
+        idx += 32;
+        
+        // Date (8 bytes)
+        msg.date = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.date = (msg.date << 8) | buffer[idx++];
+        }
+        
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// Estructura auxiliar para una entrada de sensor en DataResponse
+#pragma pack(push, 1)
+struct SensorEntry {
+    char sensor_id[16];    // ID del sensor (ej: "DHT11A", "PIR001")
+    uint64_t date;         // Fecha (YYYYMMDD)
+    uint64_t time;         // Hora (HHMMSS)
+    float data_value;      // Valor del dato (temperatura, distancia, binario)
+    char status[8];        // Estado: "NORMAL" o "ALERT"
+};
+#pragma pack(pop)
+
+// DataResponse - Proxy responde con datos de sensores (ID 15)
+// Tamaño variable: 3 bytes header + (44 bytes * entriesCount)
+struct DataResponse {
+    uint8_t message_id = MSG_DATA_RESPONSE;
+    uint8_t entriesCount;  // Número de entradas de sensores
+    std::vector<SensorEntry> entries;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.push_back(entriesCount);
+        
+        // Serializar cada entrada
+        for (const auto& entry : entries) {
+            // sensor_id (16 bytes)
+            result.insert(result.end(), entry.sensor_id, entry.sensor_id + 16);
+            
+            // date (8 bytes, big-endian)
+            for (int i = 7; i >= 0; i--) {
+                result.push_back((entry.date >> (i * 8)) & 0xFF);
+            }
+            
+            // time (8 bytes, big-endian)
+            for (int i = 7; i >= 0; i--) {
+                result.push_back((entry.time >> (i * 8)) & 0xFF);
+            }
+            
+            // data_value (4 bytes, float)
+            uint32_t floatBits;
+            std::memcpy(&floatBits, &entry.data_value, sizeof(float));
+            for (int i = 3; i >= 0; i--) {
+                result.push_back((floatBits >> (i * 8)) & 0xFF);
+            }
+            
+            // status (8 bytes)
+            result.insert(result.end(), entry.status, entry.status + 8);
+        }
+        
+        return result;
+    }
+
+    static DataResponse deserialize(const std::vector<uint8_t>& buffer) {
+        DataResponse msg;
+        size_t idx = 0;
+        
+        msg.message_id = buffer[idx++];
+        msg.entriesCount = buffer[idx++];
+        
+        for (int i = 0; i < msg.entriesCount && idx < buffer.size(); i++) {
+            SensorEntry entry;
+            
+            // sensor_id (16 bytes)
+            std::memcpy(entry.sensor_id, &buffer[idx], 16);
+            idx += 16;
+            
+            // date (8 bytes)
+            entry.date = 0;
+            for (int j = 0; j < 8; j++) {
+                entry.date = (entry.date << 8) | buffer[idx++];
+            }
+            
+            // time (8 bytes)
+            entry.time = 0;
+            for (int j = 0; j < 8; j++) {
+                entry.time = (entry.time << 8) | buffer[idx++];
+            }
+            
+            // data_value (4 bytes, float)
+            uint32_t floatBits = 0;
+            for (int j = 0; j < 4; j++) {
+                floatBits = (floatBits << 8) | buffer[idx++];
+            }
+            std::memcpy(&entry.data_value, &floatBits, sizeof(float));
+            
+            // status (8 bytes)
+            std::memcpy(entry.status, &buffer[idx], 8);
+            idx += 8;
+            
+            msg.entries.push_back(entry);
+        }
+        
+        return msg;
+    }
+};
 
 // --------------------------------------------------
 // Mensaje de Storage
