@@ -472,6 +472,28 @@ struct ListSensorRequest {
 };
 #pragma pack(pop)
 
+// ListSensorRequestWithoutToken - Proxy envía al Storage (sin token)
+// Tamaño: 1 byte (solo message_id)
+#pragma pack(push, 1)
+struct ListSensorRequestWithoutToken {
+    uint8_t message_id = MSG_LIST_SENSOR_REQUEST;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        return result;
+    }
+
+    static ListSensorRequestWithoutToken deserialize(const std::vector<uint8_t>& buffer) {
+        ListSensorRequestWithoutToken msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
 // ListSensorResponse - Proxy responde con lista de sensores (ID 17)
 // Tamaño variable: 2 bytes header + (16 bytes * sensorCount)
 struct ListSensorResponse {

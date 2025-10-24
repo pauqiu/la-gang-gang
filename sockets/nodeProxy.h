@@ -141,13 +141,14 @@ private:
     
     // Handler para solicitud de lista de sensores
     void onListSensorRequest(const std::vector<uint8_t>& buf, int client_socket) {
-        auto msg = ListSensorRequest::deserialize(buf);
+        // 1. Deserializar mensaje del cliente
+        auto clientMsg = ListSensorRequest::deserialize(buf);
         
         std::cout << "[Proxy] ListSensorRequest recibido\n";
         
-        // Validar token
+        // 2. Validar token
         std::string username;
-        if (!validateToken(msg.token, username)) {
+        if (!validateToken(clientMsg.token, username)) {
             std::cout << "[Proxy] Token inválido, rechazando solicitud\n";
             sendSessionError(client_socket, 3);
             close(client_socket);
@@ -156,15 +157,19 @@ private:
         
         std::cout << "[Proxy] Token válido para usuario: " << username << "\n";
         
-        // TODO: Consultar storage para obtener lista real de sensores
-        // Por ahora, respuesta vacía o hardcoded
-        ListSensorResponse response;
-        response.message_id = MSG_LIST_SENSOR_RESPONSE;
-        response.sensorCount = 0;
+        // 3. Crear mensaje sin token para storage
+        ListSensorRequestWithoutToken storageMsg = createStorageListRequest();
         
-        auto data = response.serialize();
-        send_message(client_socket, data.data(), data.size());
-        std::cout << "[Proxy] ListSensorResponse enviado\n";
+        // 4. Enviar al storage y obtener respuesta
+        std::vector<uint8_t> storageResponse = queryStorageForSensorList(storageMsg);
+        
+        // 5. Reenviar respuesta al cliente sin modificar
+        if (!storageResponse.empty()) {
+            send_message(client_socket, storageResponse.data(), storageResponse.size());
+            std::cout << "[Proxy] ListSensorResponse reenviada al cliente\n";
+        } else {
+            std::cerr << "[Proxy] Error obteniendo lista de sensores del storage\n";
+        }
         
         close(client_socket);
     }
@@ -253,6 +258,48 @@ private:
         
         response.resize(bytes);
         std::cout << "[Proxy] Respuesta recibida del storage (" << bytes << " bytes)\n";
+        
+        return response;
+    }
+    
+    // Crear mensaje sin token para solicitar lista de sensores
+    ListSensorRequestWithoutToken createStorageListRequest() {
+        ListSensorRequestWithoutToken storageMsg;
+        storageMsg.message_id = MSG_LIST_SENSOR_REQUEST;
+        return storageMsg;
+    }
+    
+    // Consultar storage para obtener lista de sensores
+    std::vector<uint8_t> queryStorageForSensorList(const ListSensorRequestWithoutToken& request) {
+        std::cout << "[Proxy] Enviando ListSensorRequestWithoutToken al storage (sin token)\n";
+        
+        // Serializar y enviar al storage
+        auto requestData = request.serialize();
+        int storageSock = connect_to("127.0.0.1", 5003);
+        
+        if (storageSock < 0) {
+            std::cerr << "[Proxy] Error conectando con Storage\n";
+            return {};
+        }
+        
+        if (!send_message(storageSock, requestData.data(), requestData.size())) {
+            std::cerr << "[Proxy] Error enviando mensaje al Storage\n";
+            close(storageSock);
+            return {};
+        }
+        
+        // Recibir respuesta del storage
+        std::vector<uint8_t> response(4096);
+        ssize_t bytes = recv_message(storageSock, response.data(), response.size());
+        close(storageSock);
+        
+        if (bytes <= 0) {
+            std::cerr << "[Proxy] Error recibiendo respuesta del Storage\n";
+            return {};
+        }
+        
+        response.resize(bytes);
+        std::cout << "[Proxy] Lista de sensores recibida del storage (" << bytes << " bytes)\n";
         
         return response;
     }
