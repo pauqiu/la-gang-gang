@@ -1,0 +1,118 @@
+#include "node_base.h"
+#include "messages.h"
+#include "security.h"
+#include <iostream>
+#include <cstring>
+#include <random>
+
+class NodeAuth : public NodeBase {
+public:
+    NodeAuth(int port, Security* securityInstance)
+        : NodeBase(port), security(securityInstance) {
+        dispatcher.registerHandler(MSG_AUTHENTICATION,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onAuthentication(buf, client_socket);
+                                   });
+    }
+
+    void onAuthentication(const std::vector<uint8_t>& buf, int client_socket) {
+        auto msg = AuthMessage::deserialize(buf);
+        std::cout << "[AuthNode] Usuario: " << msg.user << ", Password: " << msg.password << "\n";
+
+        // Validar credenciales usando Security
+        bool credentialsValid = false;
+        uint8_t userRole = 0;
+        uint8_t errorCode = 0;
+        validateCredentials(msg, credentialsValid, userRole, errorCode);
+
+        // Enviar respuesta
+        if (credentialsValid) {
+            sendSuccessResponse(client_socket, msg.user, userRole);
+        } else {
+            sendErrorResponse(client_socket, errorCode);
+        }
+
+        close(client_socket);
+    }
+
+private:
+    Security* security;  // Puntero a Security
+
+    void validateCredentials(const AuthMessage& msg, bool& valid,
+                             uint8_t& role, uint8_t& errorCode) {
+        QString username = QString::fromStdString(msg.user);
+        QString password = QString::fromStdString(msg.password);
+
+        // Usar Security::verifyUser - ya retorna el número de rol
+        int result = security->verifyUser(username, password);
+
+        if (result >= 0) {
+            valid = true;
+
+            // *** USAR EL RESULTADO DIRECTAMENTE ***
+            role = static_cast<uint8_t>(result);  // verifyUser ya retorna 1-7
+
+            QString roleStr = security->getUserRole(username);  // Solo para logging
+
+            std::cout << "[AuthNode] Credenciales válidas - Usuario: "
+                      << msg.user << ", Rol: " << roleStr.toStdString()
+                      << " (" << (int)role << ")\n";
+        } else {
+            valid = false;
+            errorCode = 1;
+            std::cout << "[AuthNode] Autenticación fallida para: " << msg.user << "\n";
+        }
+    }
+
+    void sendSuccessResponse(int client_socket, const std::string& username, uint8_t role) {
+        AuthResponse response;
+        response.message_id = MSG_AUTH_RESPONSE;
+        response.role = role;
+        generateSessionToken(response.token);
+
+        // Enviar respuesta al cliente
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+        std::cout << "[AuthNode] AuthResponse enviado al cliente (role=" << (int)role << ")\n";
+
+        // Registrar token en el proxy
+        registerTokenWithProxy(username, response.token, role);
+    }
+
+    void registerTokenWithProxy(const std::string& username, const uint8_t token[32], uint8_t role) {
+        TokenNotif tokenMsg;
+        tokenMsg.message_id = MSG_TOKEN_REGISTER;
+        std::memcpy(tokenMsg.token, token, 32);
+
+        // Copiar username (máximo 16 bytes)
+        std::memset(tokenMsg.username, 0, 16);
+        size_t len = std::min(username.length(), size_t(16));
+        std::memcpy(tokenMsg.username, username.c_str(), len);
+
+        tokenMsg.role = role;
+
+        // Enviar token al proxy (puerto 5002)
+        auto data = tokenMsg.serialize();
+        sendTo("127.0.0.1", 5002, data);
+        std::cout << "[AuthNode] TokenNotif enviado a Proxy (user=" << username << ", role=" << (int)role << ")\n";
+    }
+
+    void sendErrorResponse(int client_socket, uint8_t errorCode) {
+        AuthError error;
+        error.message_id = MSG_AUTH_ERROR;
+        error.error_code = errorCode;
+
+        auto data = error.serialize();
+        send_message(client_socket, data.data(), data.size());
+        std::cout << "[AuthNode] AuthError enviado (error_code=" << (int)errorCode << ")\n";
+    }
+
+    void generateSessionToken(uint8_t token[32]) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(1, 255);
+        for (int i = 0; i < 32; i++) {
+            token[i] = static_cast<uint8_t>(dis(gen));
+        }
+    }
+};

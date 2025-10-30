@@ -1,0 +1,179 @@
+#include "encryptation.h"
+#include "security.h"
+
+#include <sstream>
+#include <vector>
+
+#define USERS_PATH "Users.txt"
+#define MAX_USERS_DATA 3072
+
+#include <QDebug>
+
+/**
+ *  User's file format:
+ *
+ *  username:hashed password:role
+ *
+ **/
+
+Security::Security(FileSystem * storage): storage(storage) {
+
+    loadUsersList();
+}
+
+Security::~Security(){}
+
+int Security::verifyUser(QString username, QString password)
+{
+    std::vector<std::string> user = getUser(username);
+    if (user.empty()) {
+        qDebug() << "User not found";
+        return -1;
+    }
+    if(!Encryptation::veifyPassword(password, user[1])) {
+        qDebug() << "The password is incorrect";
+        return -1;
+    }
+
+    // CAMBIO: Retornar el rol del usuario (user[2] contiene el rol)
+    QString roleStr = QString::fromStdString(user[2]);
+
+    // Convertir rol a int
+    if (roleStr == "admin_sistema") return 1;
+    if (roleStr == "tecnico_sensores") return 2;
+    if (roleStr == "oficial_seguridad") return 3;
+    if (roleStr == "supervisor_seguridad") return 4;
+    if (roleStr == "analista_negocios") return 5;
+    if (roleStr == "admin_general") return 6;
+    if (roleStr == "auditor") return 7;
+
+    return 0;  // Rol por defecto o desconocido
+}
+
+int Security::registerUser(QString username, QString password, QString role)
+{
+    std::vector<std::string> newUser;
+
+    // TODO (@Paulette): Make this validation more solid.
+    if (!validPassword(password) || !validUser(username)) return 1;
+
+    std::string hashed_pwd = Encryptation::encryptPassword(password);
+    std::string user_info = username.toStdString() + ":" + hashed_pwd + ":"
+                            + role.toStdString() + "\n";
+
+    newUser.push_back(username.toStdString());
+    newUser.push_back(hashed_pwd);
+    newUser.push_back(role.toStdString());
+
+    this->registeredUsers.push_back(newUser);
+    storage->appendToFile(USERS_PATH, user_info);
+    return 0;
+}
+
+std::vector<std::vector<std::string> > Security::getUsers()
+{
+    return this->registeredUsers;
+}
+
+bool Security::validPassword(QString password)
+{
+    if (password.size() > 10 || password.contains(":")) {
+        qDebug() << "Invalid password";
+        return false;
+    }
+
+    return true;
+}
+
+bool Security::validUser(QString password)
+{
+    if (password.size() > 16 || password.contains(":")) {
+        qDebug() << "Invalid user";
+        return false;
+    }
+
+    return true;
+}
+
+std::vector<std::string> Security::getUser(QString username)
+{
+    std::vector<std::string> user;
+
+    for (int usr = 0; usr < this->registeredUsers.size();
+         usr++) {
+        if (this->registeredUsers[usr][0] == username.toStdString()) {
+            user = registeredUsers[usr];
+            break;
+        }
+    }
+
+    return user;
+}
+
+void Security::loadUsersList()
+{
+    std::vector<char> users = storage->readFile(USERS_PATH);
+
+    std::vector<std::vector<std::string>> usersList;
+    std::vector<std::string> user;
+    std::string currentUser;
+
+    for (int ch = 0; ch < users.size(); ch++) {
+        if (users[ch] == '\n') {
+            user = splitUserInfo(currentUser);
+            usersList.push_back(user);
+            currentUser.clear();
+        } else {
+            currentUser += users[ch];
+        }
+    }
+    this->registeredUsers = usersList;
+}
+
+std::vector<std::string> Security::splitUserInfo(const std::string userInfo)
+{
+    std::vector<std::string> result;
+    std::stringstream auxiliar(userInfo);
+    std::string token;
+
+    while(std::getline(auxiliar, token, ':')) {
+        result.push_back(token);
+    }
+
+    return result;
+}
+
+int Security::updateUser(QString oldUsername, QString newUsername, QString newRole) {
+    bool found = false;
+
+    for (auto &user : registeredUsers) {
+        if (user[0] == oldUsername.toStdString()) {
+            user[0] = newUsername.toStdString();
+            user[2] = newRole.toStdString();
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        qDebug() << "El usuario no existe.";
+        return -1;
+    }
+
+    std::string newContent;
+    for (const auto &u : registeredUsers) {
+        newContent += u[0] + ":" + u[1] + ":" + u[2] + "\n";
+    }
+
+    storage->writeFile(USERS_PATH, newContent);
+    return 0;
+}
+
+QString Security::getUserRole(const QString &username) {
+    for (const auto &user : registeredUsers) {
+        if (user[0] == username.toStdString()) {
+            return QString::fromStdString(user[2]);
+        }
+    }
+    return "";
+}
