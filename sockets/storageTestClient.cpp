@@ -260,7 +260,7 @@ int main() {
     std::cout << "   PRUEBAS CON DATOS REALES DE SENSORES\n";
     std::cout << "===========================================\n";
     std::cout << "Asegúrate de que nodeStorageMain esté corriendo\n";
-    std::cout << "en el puerto 3.\n\n";
+    std::cout << "en el puerto 5003.\n\n";
 
     std::cout << "Presiona Enter para comenzar...";
     std::cin.get();

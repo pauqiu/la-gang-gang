@@ -7,12 +7,11 @@
 /**
  * SensorRegistry - Catálogo centralizado de sensores
  * 
- * Responsabilidades:
  * - Mantener el mapeo bidireccional entre IDs textuales y numéricos
  * - Proveer lista de sensores disponibles
  * - Validar existencia de sensores
  * 
- * Futuro: Esta clase puede extenderse para cargar sensores desde archivo/DB
+ * Futuro: Esta clase puede extenderse para cargar sensores desde archivo
  * o recibir actualizaciones desde la UI de administrador.
  */
 class SensorRegistry {

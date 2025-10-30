@@ -143,6 +143,18 @@ set_target_properties(nodeStorageMain PROPERTIES
 )
 
 # =====================================
+# Ejecutable nodo Proxy
+# =====================================
+add_executable(nodeProxyMain
+    sockets/proxyMain.cpp
+)
+target_include_directories(nodeProxyMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(nodeProxyMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(nodeProxyMain PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
 # Cliente de prueba para Storage
 # =====================================
 add_executable(storageTestClient
@@ -152,6 +164,19 @@ add_executable(storageTestClient
 target_include_directories(storageTestClient PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(storageTestClient PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 set_target_properties(storageTestClient PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
+# Test End-to-End (cliente/proxy/storage)
+# =====================================
+add_executable(testEndToEnd
+    sockets/testEndToEnd.cpp
+    src/filesystem.cpp
+)
+target_include_directories(testEndToEnd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(testEndToEnd PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(testEndToEnd PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
