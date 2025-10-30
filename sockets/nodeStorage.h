@@ -2,10 +2,13 @@
 #include "node_base.h"
 #include "messages.h"
 #include "filesystem.h"
+#include "sensorRegistry.h"
 #include <iostream>
 #include <cstring>
 #include <vector>
 #include <sstream>
+#include <map>
+#include <ctime>
 
 class NodeStorage : public NodeBase {
 public:
@@ -21,6 +24,16 @@ public:
         dispatcher.registerHandler(MSG_STORAGE_SYNC_REQUEST,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onStorageSyncRequest(buf, client_socket);
+                                   });
+        
+        dispatcher.registerHandler(MSG_DATA_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onDataRequest(buf, client_socket);
+                                   });
+        
+        dispatcher.registerHandler(MSG_LIST_SENSOR_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onListSensorRequest(buf, client_socket);
                                    });
     }
 
@@ -58,6 +71,39 @@ public:
             sendStorageSyncError(client_socket, 404);  // 404 = Data not found
         }
 
+        close(client_socket);
+    }
+    
+    void onDataRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto msg = DataRequestWithoutToken::deserialize(buf);
+        
+        std::string sensorId(msg.sensor_id, strnlen(msg.sensor_id, 16));
+        std::cout << "[StorageNode] DataRequest recibido - Sensor: " << sensorId
+                  << ", StartDate: " << msg.startDate << ", EndDate: " << msg.endDate << "\n";
+        
+        // Recuperar datos del filesystem
+        std::vector<SensorDataBlock> dataBlocks = retrieveDataForDataResponse(msg);
+        
+        // Construir y enviar respuesta
+        if (!dataBlocks.empty()) {
+            DataResponse response = buildDataResponse(dataBlocks, sensorId);
+            sendDataResponse(client_socket, response);
+        } else {
+            sendEmptyDataResponse(client_socket);
+        }
+        
+        close(client_socket);
+    }
+    
+    void onListSensorRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto msg = ListSensorRequestWithoutToken::deserialize(buf);
+        
+        std::cout << "[StorageNode] ListSensorRequest recibido\n";
+        
+        // Obtener lista de sensores disponibles
+        ListSensorResponse response = buildSensorListResponse();
+        sendListSensorResponse(client_socket, response);
+        
         close(client_socket);
     }
 
@@ -268,5 +314,218 @@ private:
         send_message(client_socket, data.data(), data.size());
 
         std::cout << "[StorageNode] StorageSyncError enviado (error=" << errorCode << ")\n";
+    }
+
+    // Recuperar datos para DataResponse usando sensor_id string
+    std::vector<SensorDataBlock> retrieveDataForDataResponse(const DataRequestWithoutToken& msg) {
+        std::vector<SensorDataBlock> results;
+
+        try {
+            std::string sensorId(msg.sensor_id, strnlen(msg.sensor_id, 16));
+
+            // Obtener ID numérico desde el registro centralizado
+            auto numericIdOpt = SensorRegistry::getInstance().getNumericId(sensorId);
+            if (!numericIdOpt.has_value()) {
+                std::cout << "[StorageNode] Sensor desconocido: " << sensorId << "\n";
+                return results;
+            }
+
+            uint8_t numericSensorId = numericIdOpt.value();
+
+            uint64_t currentDate = msg.startDate;
+
+            while (currentDate <= msg.endDate) {
+                std::string dateStr = std::to_string(currentDate);
+                std::string mmdd;
+
+                if (dateStr.length() >= 8) {
+                    mmdd = dateStr.substr(4, 4);
+                } else if (dateStr.length() >= 4) {
+                    mmdd = dateStr.substr(dateStr.length() - 4);
+                } else {
+                    mmdd = std::string(4 - dateStr.length(), '0') + dateStr;
+                }
+
+                std::string filename = "s" + std::to_string(numericSensorId) + mmdd + ".dat";
+                std::vector<char> fileData = filesystem->readFile(filename);
+
+                if (fileData.empty()) {
+                    std::cout << "[StorageNode] Archivo no encontrado: " << filename << "\n";
+                    currentDate = getNextDate(currentDate);
+                    continue;
+                }
+
+                std::cout << "[StorageNode] Leyendo archivo: " << filename << "\n";
+
+                size_t idx = 0;
+                while (idx < fileData.size()) {
+                    if (idx + 1 + 8 + 8 + 1 > fileData.size()) {
+                        break;
+                    }
+
+                    SensorDataBlock block;
+                    std::memcpy(&block.sensorId, &fileData[idx], sizeof(uint8_t));
+                    idx += sizeof(uint8_t);
+
+                    std::memcpy(&block.date, &fileData[idx], sizeof(uint64_t));
+                    idx += sizeof(uint64_t);
+
+                    std::memcpy(&block.time, &fileData[idx], sizeof(uint64_t));
+                    idx += sizeof(uint64_t);
+
+                    std::memcpy(&block.dataLength, &fileData[idx], sizeof(uint8_t));
+                    idx += sizeof(uint8_t);
+
+                    if (idx + block.dataLength > fileData.size()) {
+                        std::cerr << "[StorageNode] Datos corruptos en archivo\n";
+                        break;
+                    }
+
+                    block.data.resize(block.dataLength);
+                    std::memcpy(block.data.data(), &fileData[idx], block.dataLength);
+                    idx += block.dataLength;
+
+                    if (block.sensorId != numericSensorId) {
+                        continue;
+                    }
+
+                    if (block.date >= msg.startDate && block.date <= msg.endDate) {
+                        results.push_back(block);
+                    }
+                }
+
+                uint64_t next = getNextDate(currentDate);
+                if (next <= currentDate) {
+                    break;
+                }
+                currentDate = next;
+            }
+
+            std::cout << "[StorageNode] Recuperados " << results.size()
+                      << " bloques para " << sensorId << "\n";
+
+        } catch (const std::exception& e) {
+            std::cerr << "[StorageNode] Error al recuperar datos: " << e.what() << "\n";
+        }
+
+        return results;
+    }
+
+    
+    // Construir DataResponse desde SensorDataBlocks
+    DataResponse buildDataResponse(const std::vector<SensorDataBlock>& blocks,
+                                   const std::string& sensorId) {
+        DataResponse response;
+        response.message_id = MSG_DATA_RESPONSE;
+        response.entriesCount = blocks.size();
+        
+        for (const auto& block : blocks) {
+            SensorEntry entry;
+            
+            // Copiar sensor_id (string)
+            std::memset(entry.sensor_id, 0, 16);
+            size_t len = std::min(sensorId.length(), size_t(16));
+            std::memcpy(entry.sensor_id, sensorId.c_str(), len);
+            
+            // Copiar timestamp
+            entry.date = block.date;
+            entry.time = block.time;
+            
+            // Convertir data a float
+            // Formato: [value(2bytes)][status(1byte)]
+            if (block.data.size() >= 2) {
+                uint16_t value = (static_cast<uint16_t>(block.data[0]) << 8) | block.data[1];
+                entry.data_value = static_cast<float>(value);
+            } else {
+                entry.data_value = 0.0f;
+            }
+            
+            // Determinar status
+            std::memset(entry.status, 0, 8);
+            if (block.data.size() >= 3) {
+                uint8_t statusByte = block.data[2];
+                if (statusByte == 1) {
+                    std::memcpy(entry.status, "ALERT", 5);
+                } else {
+                    std::memcpy(entry.status, "NORMAL", 6);
+                }
+            } else {
+                std::memcpy(entry.status, "NORMAL", 6);
+            }
+            
+            response.entries.push_back(entry);
+        }
+        
+        return response;
+    }
+    
+    // Enviar DataResponse al cliente
+    void sendDataResponse(int client_socket, const DataResponse& response) {
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+        
+        std::cout << "[StorageNode] DataResponse enviado (" 
+                  << (int)response.entriesCount << " entradas)\n";
+    }
+    
+    // Enviar DataResponse vacío
+    void sendEmptyDataResponse(int client_socket) {
+        DataResponse response;
+        response.message_id = MSG_DATA_RESPONSE;
+        response.entriesCount = 0;
+        
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+        
+        std::cout << "[StorageNode] DataResponse vacío enviado (sin datos)\n";
+    }
+    
+    // Construir lista de sensores disponibles
+    ListSensorResponse buildSensorListResponse() {
+        ListSensorResponse response;
+        response.message_id = MSG_LIST_SENSOR_RESPONSE;
+        
+        // Obtener lista desde el registro centralizado
+        auto sensors = SensorRegistry::getInstance().getAllSensorIds();
+        
+        response.sensorCount = sensors.size();
+        response.sensorIds.resize(sensors.size());
+        
+        for (size_t i = 0; i < sensors.size(); i++) {
+            std::array<char, 16> sensorId = {};
+            std::memcpy(sensorId.data(), sensors[i].c_str(), 
+                       std::min(sensors[i].length(), size_t(16)));
+            response.sensorIds[i] = sensorId;
+        }
+        
+        return response;
+    }
+    
+    // Enviar ListSensorResponse
+    void sendListSensorResponse(int client_socket, const ListSensorResponse& response) {
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+        
+        std::cout << "[StorageNode] ListSensorResponse enviado (" 
+                  << (int)response.sensorCount << " sensores)\n";
+    }
+
+    uint64_t getNextDate(uint64_t date) {
+        int year = static_cast<int>(date / 10000);
+        int month = static_cast<int>((date % 10000) / 100);
+        int day = static_cast<int>(date % 100);
+
+        std::tm tm_date = {};
+        tm_date.tm_year = year - 1900;
+        tm_date.tm_mon = month - 1;
+        tm_date.tm_mday = day + 1;
+
+        std::mktime(&tm_date);
+
+        int nextYear = tm_date.tm_year + 1900;
+        int nextMonth = tm_date.tm_mon + 1;
+        int nextDay = tm_date.tm_mday;
+
+        return static_cast<uint64_t>(nextYear) * 10000ULL + static_cast<uint64_t>(nextMonth) * 100ULL + static_cast<uint64_t>(nextDay);
     }
 };

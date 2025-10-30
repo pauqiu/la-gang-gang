@@ -1,6 +1,7 @@
 #include "nodeClient.h"
 #include "messages.h"
 #include "communication.h"
+#include "sensorRegistry.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -10,13 +11,6 @@
 
 class StorageTestClient {
 public:
-    // Mapeo de sensor_id string a uint8_t
-    std::map<std::string, uint8_t> sensorMap = {
-        {"PIR001", 1},
-        {"DHT11A", 2},
-        {"HC001", 3},
-        {"VB001", 4}
-    };
 
     // Test 1: Guardar datos reales de los sensores
     void testStorageSaveReal() {
@@ -64,13 +58,18 @@ public:
 
         // Procesar cada sensor
         for (const auto& [sensorName, readings] : sensorData) {
-            uint8_t sensorId = sensorMap[sensorName];
+            auto sensorIdOpt = SensorRegistry::getInstance().getNumericId(sensorName);
+            if (!sensorIdOpt.has_value()) {
+                std::cerr << "[TestClient] Sensor desconocido: " << sensorName << "\n";
+                continue;
+            }
+            uint8_t sensorId = sensorIdOpt.value();
 
             std::cout << "\n--- Procesando sensor " << sensorName
                       << " (ID: " << (int)sensorId << ") ---\n";
 
             for (const auto& reading : readings) {
-                int sock = connect_to("127.0.0.1", 5004);
+                int sock = connect_to("127.0.0.1", 5003);
                 if (sock < 0) {
                     std::cerr << "[TestClient] Error conectando a Storage\n";
                     continue;
@@ -127,8 +126,12 @@ public:
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         // Sincronizar cada sensor
-        for (const auto& [sensorName, sensorId] : sensorMap) {
-            int sock = connect_to("127.0.0.1", 5004);
+        auto allSensors = SensorRegistry::getInstance().getAllSensorIds();
+        for (const auto& sensorName : allSensors) {
+            auto sensorIdOpt = SensorRegistry::getInstance().getNumericId(sensorName);
+            if (!sensorIdOpt.has_value()) continue;
+            uint8_t sensorId = sensorIdOpt.value();
+            int sock = connect_to("127.0.0.1", 5003);
             if (sock < 0) {
                 std::cerr << "[TestClient] Error conectando a Storage\n";
                 continue;
@@ -257,7 +260,7 @@ int main() {
     std::cout << "   PRUEBAS CON DATOS REALES DE SENSORES\n";
     std::cout << "===========================================\n";
     std::cout << "Asegúrate de que nodeStorageMain esté corriendo\n";
-    std::cout << "en el puerto 5004.\n\n";
+    std::cout << "en el puerto 3.\n\n";
 
     std::cout << "Presiona Enter para comenzar...";
     std::cin.get();

@@ -10,11 +10,11 @@ int main(int argc, char *argv[]) {
     // Crear instancia de FileSystem
     FileSystem storage("sensors.bin");
     
-    // Crear NodeStorage en puerto 5004
-    NodeStorage storageNode(5004, &storage);
+    // Crear NodeStorage en puerto 5003
+    NodeStorage storageNode(5003, &storage);
     storageNode.start();
     
-    std::cout << "[System] Nodo Storage iniciado en puerto 5004.\n";
+    std::cout << "[System] Nodo Storage iniciado en puerto 5003.\n";
     std::cout << "[System] Escribe '#' para detenerlo.\n";
     
     std::string input;

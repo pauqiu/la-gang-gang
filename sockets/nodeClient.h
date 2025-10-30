@@ -112,7 +112,7 @@ public:
         if (!response.empty()) {
             entries = processDataResponse(response);
         }
-        
+
         close(sock);
         return entries;
     }
@@ -341,50 +341,56 @@ private:
     
     // Procesar respuesta de datos de sensor
     std::vector<SensorEntry> processDataResponse(const std::vector<uint8_t>& response) {
-        std::vector<SensorEntry> entries;
-        
+        if (response.empty()) {
+            std::cerr << "[Client] Respuesta vacía.\n";
+            return {};
+        }
+
         if (response[0] != MSG_DATA_RESPONSE) {
             std::cerr << "[Client] Respuesta inesperada (ID=" << (int)response[0] << ")\n";
-            return entries;
+            return {};
         }
-        
+
         auto msg = DataResponse::deserialize(response);
-        
+        // logDataResponse(msg); // loggear en consola tabla de datos      
+        return msg.entries;
+    }
+
+    void logDataResponse(const DataResponse& msg) {
         std::cout << "\nDATOS DEL SENSOR (" << (int)msg.entriesCount << " entradas):\n";
         std::cout << std::string(80, '-') << "\n";
-        std::cout << std::left << std::setw(18) << "Timestamp" 
+        std::cout << std::left << std::setfill(' ')
+                  << std::setw(18) << "Timestamp" 
                   << std::setw(18) << "Sensor ID"
                   << std::setw(15) << "Data Value"
                   << std::setw(10) << "Status" << "\n";
         std::cout << std::string(80, '-') << "\n";
-        
+
         for (const auto& entry : msg.entries) {
-            // Formatear timestamp
             std::string dateStr = std::to_string(entry.date);
             std::string timeStr = std::to_string(entry.time);
-            
-            // Padding para time (HHMMSS)
-            while (timeStr.length() < 6) timeStr = "0" + timeStr;
-            
-            std::string timestamp = dateStr.substr(0, 4) + "-" + 
-                                   dateStr.substr(4, 2) + "-" + 
+
+            while (timeStr.length() < 6) {
+                timeStr = "0" + timeStr;
+            }
+
+            std::string timestamp = dateStr.substr(0, 4) + "-" +
+                                   dateStr.substr(4, 2) + "-" +
                                    dateStr.substr(6, 2) + " " +
-                                   timeStr.substr(0, 2) + ":" + 
-                                   timeStr.substr(2, 2) + ":" + 
+                                   timeStr.substr(0, 2) + ":" +
+                                   timeStr.substr(2, 2) + ":" +
                                    timeStr.substr(4, 2);
-            
+
             std::string sensorId(entry.sensor_id, strnlen(entry.sensor_id, 16));
             std::string status(entry.status, strnlen(entry.status, 8));
-            
-            std::cout << std::left << std::setw(18) << timestamp
+
+            std::cout << std::left << std::setfill(' ')
+                      << std::setw(18) << timestamp
                       << std::setw(18) << sensorId
                       << std::setw(15) << entry.data_value
                       << std::setw(10) << status << "\n";
-            
-            entries.push_back(entry);
         }
+
         std::cout << std::string(80, '-') << "\n\n";
-        
-        return entries;
     }
 };
