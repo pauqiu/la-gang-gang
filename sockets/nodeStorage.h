@@ -263,7 +263,7 @@ private:
         StorageSyncError error;
         error.message_id = MSG_STORAGE_SYNC_ERROR;
         error.errorCode = errorCode;
-
+22
         auto data = error.serialize();
         send_message(client_socket, data.data(), data.size());
 

@@ -86,6 +86,7 @@ set(SOCKETS_SOURCES
     sockets/nodeAuth.h
     sockets/communication.h
     sockets/nodeStorage.h
+    sockets/nodeReceptor.h
 )
 
 # =====================================
@@ -130,6 +131,7 @@ add_executable(nodeAuthMain
 target_include_directories(nodeAuthMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeAuthMain PRIVATE sodium Qt${QT_VERSION_MAJOR}::Core)
 
+
 # =====================================
 # Ejecutable nodo Storage independiente
 # =====================================
@@ -147,8 +149,13 @@ set_target_properties(nodeStorageMain PROPERTIES
 # Ejecutable nodo Receptor
 # =====================================
 add_executable(nodeReceptor
-
-
+    sockets/ReceptorMain.cpp
+    src/filesystem.cpp
+)
+target_include_directories(nodeReceptor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(nodeReceptor PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(nodeReceptor PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
 # =====================================

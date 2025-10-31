@@ -906,15 +906,15 @@ struct HumiditySensorData {
 };
 
 struct SensorsData {
-    uint8_t message_id = MSG_SENSORS_DATA;
+    uint16_t message_id = MSG_SENSORS_DATA;
     uint16_t echo = 0; // From the ultrasonic sensor
     uint16_t volume = 0; // From the sound sensor
     uint16_t temperature = 0; // From the humidity sensor
-    uint16_t humidity = 0; // From the humidity sensor
 
     std::vector<uint8_t> serialize() const {
         std::vector<uint8_t> data;
-        data.push_back(message_id);
+        data.push_back(message_id & 0xFF);
+        data.push_back((message_id >> 8) & 0xFF);
 
         data.push_back(echo & 0xFF);
         data.push_back((echo >> 8) & 0xFF);
@@ -925,19 +925,16 @@ struct SensorsData {
         data.push_back(temperature & 0xFF); // little-endian
         data.push_back((temperature >> 8) & 0xFF);
 
-        data.push_back(humidity & 0xFF);
-        data.push_back((humidity >> 8) & 0xFF);
         return data;
     }
 
     static SensorsData deserialize(const std::vector<uint8_t>& buffer) {
         SensorsData msg;
         if (!buffer.empty()) {
-            msg.message_id = buffer[0];
-            msg.echo = buffer[1] | (buffer[2] << 8);
-            msg.volume = buffer[3] | (buffer[4] << 8);
-            msg.temperature = buffer[5] | (buffer[6] << 8);
-            msg.humidity = buffer[7] | (buffer[8] << 8);
+            msg.message_id = buffer[0] | (buffer[1] << 8);
+            msg.echo = buffer[2] | (buffer[3] << 8);
+            msg.volume = buffer[4] | (buffer[5] << 8);
+            msg.temperature = buffer[6] | (buffer[7] << 8);
         }
         return msg;
     }
