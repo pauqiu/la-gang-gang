@@ -98,7 +98,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RIGHTS_SOURCES}
         ${GUI_SOURCES}
         ${SECURITY_SOURCES}
-        ${SOCKETS_SOURCES}  # solo NodeClient se usa aquí
+        ${SOCKETS_SOURCES}
+        sockets/nodeReceptor.h  # solo NodeClient se usa aquí
     )
 else()
     add_executable(la-gang-gang
@@ -140,6 +141,14 @@ target_include_directories(nodeStorageMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
 target_link_libraries(nodeStorageMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 set_target_properties(nodeStorageMain PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
+# Ejecutable nodo Receptor
+# =====================================
+add_executable(nodeReceptor
+
+
 )
 
 # =====================================

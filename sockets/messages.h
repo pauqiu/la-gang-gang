@@ -25,6 +25,20 @@ enum MessageType : uint8_t {
     MSG_DATA_RESPONSE = 15,          // Proxy -> Client: respuesta con datos de sensores
     MSG_LIST_SENSOR_REQUEST = 16,    // Client -> Proxy: solicitud de lista de sensores
     MSG_LIST_SENSOR_RESPONSE = 17,   // Proxy -> Client: respuesta con lista de sensores
+
+    MSG_ULTRASONIC_SENSOR_DATA = 18,            // Arduino -> Receptor: datos detectados por los sensores
+    MSG_TILT_SENSOR_DATA = 19,            // Arduino -> Receptor: datos detectados por los sensores
+    MSG_SOUND_SENSOR_DATA = 20,            // Arduino -> Receptor: datos detectados por los sensores
+    MSG_HUMIDITY_SENSOR_DATA = 21,            // Arduino -> Receptor: datos detectados por los sensores
+    MSG_SENSORS_DATA = 22,
+};
+
+// Id de los sensores
+enum sensor : uint8_t {
+    ULTRASONIC_SENSOR = 1,
+    TILT_SENSOR = 2,
+    SOUND_SENSOR = 3,
+    HUMIDITY_SENSOR = 4,
 };
 
 struct Message {
@@ -786,3 +800,145 @@ struct StorageSyncError {
     }
 };
 #pragma pack(pop)
+
+struct UltrasonicSensorData {
+    uint8_t message_id = MSG_ULTRASONIC_SENSOR_DATA;
+    uint8_t sensor_id = ULTRASONIC_SENSOR;
+    uint16_t echo = 0;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back(sensor_id);
+        data.push_back(echo & 0xFF); // little-endian
+        data.push_back((echo >> 8) & 0xFF);
+        return data;
+    }
+
+    static UltrasonicSensorData deserialize(const std::vector<uint8_t>& buffer) {
+        UltrasonicSensorData msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+            msg.sensor_id = buffer[1];
+            msg.echo = buffer[2] | (buffer[3] << 8);
+        }
+        return msg;
+    }
+};
+
+struct TiltSensorData {
+    uint8_t message_id = MSG_TILT_SENSOR_DATA;
+    uint8_t sensor_id = TILT_SENSOR;
+    uint16_t tilt = 0; // This sensor only sends 1 or 0
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back(sensor_id);
+        data.push_back(tilt & 0xFF); // little-endian
+        data.push_back((tilt >> 8) & 0xFF);
+        return data;
+    }
+
+    static TiltSensorData deserialize(const std::vector<uint8_t>& buffer) {
+        TiltSensorData msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+            msg.sensor_id = buffer[1];
+            msg.tilt = buffer[2] | (buffer[3] << 8);
+        }
+        return msg;
+    }
+};
+
+struct SoundSensorData {
+    uint8_t message_id = MSG_SOUND_SENSOR_DATA;
+    uint8_t sensor_id = SOUND_SENSOR;
+    uint16_t volume = 0;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back(sensor_id);
+        data.push_back(volume & 0xFF); // little-endian
+        data.push_back((volume >> 8) & 0xFF);
+        return data;
+    }
+
+    static SoundSensorData deserialize(const std::vector<uint8_t>& buffer) {
+        SoundSensorData msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+            msg.sensor_id = buffer[1];
+            msg.volume = buffer[2] | (buffer[3] << 8);
+        }
+        return msg;
+    }
+};
+
+struct HumiditySensorData {
+    uint8_t message_id = MSG_HUMIDITY_SENSOR_DATA;
+    uint8_t sensor_id = HUMIDITY_SENSOR;
+    uint16_t temperature = 0;
+    uint16_t humidity = 0;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+        data.push_back(sensor_id);
+        data.push_back(temperature & 0xFF); // little-endian
+        data.push_back((temperature >> 8) & 0xFF);
+        data.push_back(humidity & 0xFF);
+        data.push_back((humidity >> 8) & 0xFF);
+        return data;
+    }
+
+    static HumiditySensorData deserialize(const std::vector<uint8_t>& buffer) {
+        HumiditySensorData msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+            msg.sensor_id = buffer[1];
+            msg.temperature = buffer[2] | (buffer[3] << 8);
+            msg.humidity = buffer[4] | (buffer[5] << 8);
+        }
+        return msg;
+    }
+};
+
+struct SensorsData {
+    uint8_t message_id = MSG_SENSORS_DATA;
+    uint16_t echo = 0; // From the ultrasonic sensor
+    uint16_t volume = 0; // From the sound sensor
+    uint16_t temperature = 0; // From the humidity sensor
+    uint16_t humidity = 0; // From the humidity sensor
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> data;
+        data.push_back(message_id);
+
+        data.push_back(echo & 0xFF);
+        data.push_back((echo >> 8) & 0xFF);
+
+        data.push_back(volume & 0xFF);
+        data.push_back((volume >> 8) & 0xFF);
+
+        data.push_back(temperature & 0xFF); // little-endian
+        data.push_back((temperature >> 8) & 0xFF);
+
+        data.push_back(humidity & 0xFF);
+        data.push_back((humidity >> 8) & 0xFF);
+        return data;
+    }
+
+    static SensorsData deserialize(const std::vector<uint8_t>& buffer) {
+        SensorsData msg;
+        if (!buffer.empty()) {
+            msg.message_id = buffer[0];
+            msg.echo = buffer[1] | (buffer[2] << 8);
+            msg.volume = buffer[3] | (buffer[4] << 8);
+            msg.temperature = buffer[5] | (buffer[6] << 8);
+            msg.humidity = buffer[7] | (buffer[8] << 8);
+        }
+        return msg;
+    }
+};
