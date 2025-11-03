@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
     // TODO: Add the logs file
     FileSystem receptor("ReceptorLogs.bin");
     
-    // Crear NodeStorage en puerto 5004
+    // Crear NodeReceptor en puerto 9090
     NodeStorage storageNode(9090, &receptor);
     storageNode.start();
     
