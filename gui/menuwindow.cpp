@@ -1,7 +1,9 @@
+
 #include "adduserwindow.h"
 #include "addrolewindow.h"
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
+#include "../sockets/nodeProxy.h"
 
 #include <sstream>
 #include <QPushButton>
@@ -17,6 +19,8 @@ menuWindow::menuWindow(Security * security, RightsValidation * rights, QWidget *
     this->setFixedSize(1100, 700);
     this->rolesAmount = 0;
     ui->filterErrorMsg->setVisible(false);
+
+    std::memset(sessionToken, 0, 32);
 
     // Menu options
     ui->stackedWidget->setCurrentIndex(0);
@@ -58,6 +62,11 @@ menuWindow::~menuWindow()
     delete ui;
 }
 
+void menuWindow::initialize() {
+    loadAvailableSensors();
+    populateSensorsDropdown();
+}
+
 void menuWindow::setLogInWindow(MainWindow *newLogIn)
 {
     this->logIn = newLogIn;
@@ -74,10 +83,56 @@ void menuWindow::setUserRole(QString role)
 {
     this->userRole = role;
     ui->role->setText(role);
+    loadUserPermissions();
+}
+
+void menuWindow::loadUserPermissions()
+{
+    userPermissions.clear();
+
+    // Obtener ID del rol por nombre
+    int roleId = rights->getRoleManager().getRoleIdByName(userRole.toStdString());
+
+    if (roleId == -1) {
+        qDebug() << "Error: Rol no encontrado:" << userRole;
+        return;
+    }
+
+    // Obtener permisos del rol
+    std::string permissions = rights->getPermissions(roleId);
+
+    if (permissions.empty()) {
+        qDebug() << "Advertencia: El rol" << userRole << "no tiene permisos asignados";
+        return;
+    }
+
+    // Parsear permisos (separados por coma)
+    std::istringstream iss(permissions);
+    std::string perm;
+
+    while (std::getline(iss, perm, ',')) {
+        // Trim espacios
+        perm.erase(0, perm.find_first_not_of(" \t"));
+        perm.erase(perm.find_last_not_of(" \t") + 1);
+
+        if (!perm.empty()) {
+            userPermissions.push_back(perm);
+        }
+    }
+
+    qDebug() << "Permisos cargados para" << userRole << ":" << userPermissions.size();
+}
+
+// Implementa hasPermission
+bool menuWindow::hasPermission(const std::string& permission) const
+{
+    return std::find(userPermissions.begin(), userPermissions.end(), permission)
+    != userPermissions.end();
 }
 
 void menuWindow::on_logOutButton_clicked()
 {
+    this->logIn->clearInputs();
     this->logIn->show();
     close();
 }
@@ -160,41 +215,69 @@ void menuWindow::onEditRoleClicked(int row)
 {
     if (row < 0 || row >= ui->rolesTable->rowCount()) return;
 
+    QString roleId = ui->rolesTable->item(row, 0)->text();
     QString roleName = ui->rolesTable->item(row, 1)->text();
-    QString roleDesc = ui->rolesTable->item(row, 2)->text();
+    QString currentPermissions = ui->rolesTable->item(row, 2)->text();
 
-    addRoleWindow dialog(roleName, roleDesc, this);
+    addRoleWindow dialog(roleName, currentPermissions, this);
     if (dialog.exec() == QDialog::Accepted) {
-        QString newRole = dialog.getRole();
-        QString newDesc = dialog.getDescription();
+        QString newRoleName = dialog.getRole();
+        QString newPermissions = dialog.getPermissions();
 
-        rights->getRoleManager().updateRole(roleName.toStdString(), newRole.toStdString(), newDesc.toStdString());
+        rights->getRoleManager().updateRole(
+            roleName.toStdString(),
+            newRoleName.toStdString(),
+            newPermissions.toStdString()
+            );
+
         loadRolesTable();
     }
 }
 
 void menuWindow::setUIByRole()
 {
-    ui->adminButton->setDisabled(true);
-    ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
-    if (this->userRole == "admin_general") {
+    // Admin button - requiere permisos de gestión
+    if (hasPermission("Manage_users") || hasPermission("manage_roles")) {
         ui->adminButton->setDisabled(false);
         ui->adminButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
         loadRolesTable();
         loadUsersTable();
-
-        ui->reportsButton->setDisabled(true);
-        ui->reportsButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
-
-    } else if (this->userRole == "analista_negocios") {
+    } else {
         ui->adminButton->setDisabled(true);
         ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
+    }
 
-    } else if (this->userRole == "Secretary") {
+    // Reports button
+    if (hasPermission("generate_attendance_reports") ||
+        hasPermission("generate_incident_reports") ||
+        hasPermission("generate_activity_reports")) {
+        ui->reportsButton->setDisabled(false);
+        ui->reportsButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
+    } else {
         ui->reportsButton->setDisabled(true);
-        ui->adminButton->setDisabled(true);
         ui->reportsButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
-        ui->adminButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
+    }
+
+    // Activity button - alertas y monitoreo
+    if (hasPermission("View_realtime_alerts") ||
+        hasPermission("View_alert_history") ||
+        hasPermission("view_active_alarms")) {
+        ui->activityButton->setDisabled(false);
+        ui->activityButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
+    } else {
+        ui->activityButton->setDisabled(true);
+        ui->activityButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
+    }
+
+    // Overview button - sensores
+    if (hasPermission("View_sensor_status") ||
+        hasPermission("view_sensor_health") ||
+        hasPermission("view_raw_sensor_data")) {
+        ui->overviewButton->setDisabled(false);
+        ui->overviewButton->setStyleSheet("color: rgb(0, 0, 0); font: 600 11pt Segoe UI;");
+    } else {
+        ui->overviewButton->setDisabled(true);
+        ui->overviewButton->setStyleSheet("font: 600 11pt Segoe UI; color: rgb(145, 145, 145);");
     }
 }
 
@@ -293,46 +376,171 @@ void menuWindow::onEditUserRoleClicked(int row)
 
 void menuWindow::on_addRoleButton_clicked()
 {
-    addRoleWindow dialog;
+    addRoleWindow dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
         QString role = dialog.getRole();
-        QString description = dialog.getDescription();
+        QString permissions = dialog.getPermissions();
 
         this->rolesAmount++;
+
         if (rights->addRole(this->rolesAmount, role.toStdString())) {
-            qDebug() << "Nuevo rol:" << role;
+            qDebug() << "Nuevo rol creado:" << role;
+
+            if (rights->addPermissions(this->rolesAmount, permissions.toStdString())) {
+                qDebug() << "Permisos asignados:" << permissions;
+            }
         }
-        if (rights->addPermissions(this->rolesAmount, description.toStdString())) {
-            qDebug() << "Permisos añadidos al rol:" << role;
-        }
+
         loadRolesTable();
     }
+}
+
+void menuWindow::setSessionToken(const uint8_t token[32]) {
+    std::memcpy(sessionToken, token, 32);
+}
+
+void menuWindow::loadAvailableSensors() {
+    availableSensors.clear();
+
+    int sock = connect_to("127.0.0.1", 5002);
+    if (sock < 0) {
+        qDebug() << "Error conectando con Proxy";
+        return;
+    }
+
+    ListSensorRequest request;
+    request.message_id = MSG_LIST_SENSOR_REQUEST;
+    std::memcpy(request.token, sessionToken, 32);
+
+    auto data = request.serialize();
+    if (!send_message(sock, data.data(), data.size())) {
+        qDebug() << "Error enviando petición";
+        return;
+    }
+
+    std::vector<uint8_t> response(4096);
+    ssize_t bytes = recv_message(sock, response.data(), response.size());
+
+    if (bytes <= 0) {
+        qDebug() << "Error recibiendo respuesta";
+        return;
+    }
+
+    response.resize(bytes);
+    auto listResponse = ListSensorResponse::deserialize(response);
+
+    for (const auto& sensorId : listResponse.sensorIds) {
+        QString sensor = QString::fromUtf8(sensorId.data(), strnlen(sensorId.data(), 16));
+        availableSensors.append(sensor);
+    }
+
+    qDebug() << "Sensores cargados:" << availableSensors;
+}
+
+void menuWindow::populateSensorsDropdown() {
+    ui->sensorIdInput->clear();
+    ui->sensorIdInput->addItems(availableSensors);
 }
 
 void menuWindow::on_filterButton_clicked()
 {
     ui->filterErrorMsg->setVisible(false);
 
-    if (ui->sensorIdInput->text().isEmpty()) {
-        ui->filterErrorMsg->setText("Fill all blanks");
+    if (ui->sensorIdInput->currentText().isEmpty()) {
+        ui->filterErrorMsg->setText("Select a sensor");
         ui->filterErrorMsg->setVisible(true);
         return;
     }
 
-    // Obtener las fechas como QDate
     QDate startDate = ui->startDateInput->date();
     QDate endDate = ui->endDateInput->date();
 
-    if (startDate <= endDate) {
-        // startDate.toString("yyyy-MM-dd")
-        // endDate.toString("yyyy-MM-dd");
-    } else {
+    if (startDate > endDate) {
         ui->filterErrorMsg->setText("Incorrect dates");
         ui->filterErrorMsg->setVisible(true);
+        return;
     }
+
+    uint64_t startDateInt = startDate.toString("yyyyMMdd").toULongLong();
+    uint64_t endDateInt = endDate.toString("yyyyMMdd").toULongLong();
+
+    QString sensorId = ui->sensorIdInput->currentText();
+
+    loadSensorData(sensorId, startDateInt, endDateInt);
 }
 
-void menuWindow::loadSensorData(uint8_t sensorId, const QString& startDate, const QString& endDate){
+void menuWindow::loadSensorData(const QString& sensorId, uint64_t startDate, uint64_t endDate) {
+    int sock = connect_to("127.0.0.1", 5002);
+    if (sock < 0) {
+        qDebug() << "Error conectando con Proxy";
+        ui->filterErrorMsg->setText("Connection error");
+        ui->filterErrorMsg->setVisible(true);
+        return;
+    }
 
+    DataRequest request;
+    request.message_id = MSG_DATA_REQUEST;
+    std::memcpy(request.token, sessionToken, 32);
+
+    std::memset(request.sensor_id, 0, 16);
+    std::memcpy(request.sensor_id,
+                sensorId.toStdString().c_str(),
+                std::min(static_cast<size_t>(sensorId.length()), static_cast<size_t>(16)));
+
+    request.startDate = startDate;
+    request.endDate = endDate;
+
+    auto data = request.serialize();
+    if (!send_message(sock, data.data(), data.size())) {
+        qDebug() << "Error enviando petición";
+        return;
+    }
+
+    std::vector<uint8_t> response(8192);
+    ssize_t bytes = recv_message(sock, response.data(), response.size());
+
+    if (bytes <= 0) {
+        qDebug() << "Error recibiendo respuesta";
+        return;
+    }
+
+    response.resize(bytes);
+    auto dataResponse = DataResponse::deserialize(response);
+
+    ui->sensorTable->clearContents();
+    ui->sensorTable->setRowCount(dataResponse.entriesCount);
+    ui->sensorTable->setColumnCount(5);
+
+    QStringList headers = {"Sensor", "Date", "Time", "Data", "Status"};
+    ui->sensorTable->setHorizontalHeaderLabels(headers);
+
+    for (int i = 0; i < dataResponse.entriesCount; i++) {
+        const auto& entry = dataResponse.entries[i];
+
+        QString sensor = QString::fromUtf8(entry.sensor_id, strnlen(entry.sensor_id, 16));
+        ui->sensorTable->setItem(i, 0, new QTableWidgetItem(sensor));
+
+        QString dateStr = QString::number(entry.date);
+        QString formattedDate = dateStr.mid(0, 4) + "-" + dateStr.mid(4, 2) + "-" + dateStr.mid(6, 2);
+        ui->sensorTable->setItem(i, 1, new QTableWidgetItem(formattedDate));
+
+        QString timeStr = QString::number(entry.time).rightJustified(6, '0');
+        QString formattedTime = timeStr.mid(0, 2) + ":" + timeStr.mid(2, 2) + ":" + timeStr.mid(4, 2);
+        ui->sensorTable->setItem(i, 2, new QTableWidgetItem(formattedTime));
+
+        ui->sensorTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.data_value, 'f', 2)));
+
+        QString status = QString::fromUtf8(entry.status, strnlen(entry.status, 8));
+        QTableWidgetItem* statusItem = new QTableWidgetItem(status);
+
+        if (status == "ALERT") {
+            statusItem->setBackground(QColor(255, 200, 200));  // Rojo
+        } else {
+            statusItem->setBackground(QColor(200, 255, 200));  // Verde
+        }
+
+        ui->sensorTable->setItem(i, 4, statusItem);
+    }
+
+    qDebug() << "Tabla cargada con" << dataResponse.entriesCount << "registros";
 }
-

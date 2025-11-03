@@ -190,3 +190,27 @@ bool RoleManager::updateRole(const std::string &oldRoleName,
         return false;
     }
 }
+
+int RoleManager::getRoleIdByName(const std::string& roleName) {
+    std::vector<std::string> lines = readRolesFile();
+
+    for (const auto &line : lines) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string idStr, currentRoleName;
+
+        if (std::getline(iss, idStr, ';') &&
+            std::getline(iss, currentRoleName, ';')) {
+            try {
+                if (currentRoleName == roleName) {
+                    return std::stoi(idStr);
+                }
+            } catch (const std::exception &e) {
+                continue;
+            }
+        }
+    }
+
+    return -1;
+}

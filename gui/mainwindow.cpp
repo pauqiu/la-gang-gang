@@ -41,20 +41,30 @@ void MainWindow::on_logInButton_clicked()
         ui->passwordMessage->setVisible(false);
     }
 
-    NodeClient client;
-    bool connectionResult = client.sendAuthentication(
+    // Crear cliente y autenticar
+    NodeClient* client = new NodeClient();  // ← Usar puntero para mantenerlo vivo
+
+    bool authSuccess = client->sendAuthentication(
         ui->usernameInput->text().toStdString(),
         ui->passwordInput->text().toStdString(),
         0
         );
 
+    if (!authSuccess) {
+        qDebug() << "Login failed - connection error!";
+        ui->authErrorMessage->setVisible(true);
+        ui->authErrorMessage->setText("Error de conexión");
+        delete client;
+        return;
+    }
+
     // Verificar respuesta del servidor
-    if (client.hasValidToken()) {
+    if (client->hasValidToken()) {
         qDebug() << "Login successful!";
         ui->authErrorMessage->setVisible(false);
 
-        // Obtener rol del token
-        uint8_t roleNumber = client.getRole();
+        // Obtener rol del token (viene del servidor)
+        uint8_t roleNumber = client->getRole();
         QString userRole = roleNumberToString(roleNumber);
 
         // Abrir ventana de menú
@@ -62,21 +72,21 @@ void MainWindow::on_logInButton_clicked()
         menu->setLogInWindow(this);
         menu->setUsername(ui->usernameInput->text());
         menu->setUserRole(userRole);
+        qDebug() << "Token recibido: " << client->getToken();
+        menu->setSessionToken(client->getToken());  // ← Pasar el token
         menu->setUIByRole();
+        menu->initialize();
         menu->show();
         close();
-    }
-    else if (!connectionResult){
-        QMessageBox::critical(this,
-                              "Error de conexión",
-                              "No se pudo conectar con el servidor de autenticación.\n");
-        qDebug() << "Fallo de conexión con el servidor de autenticación.";
-        return;
+
+        delete client;
     }
     else {
         // Mostrar error de autenticación
-        qDebug() << "Login failed!";
+        qDebug() << "Login failed - invalid credentials!";
         ui->authErrorMessage->setVisible(true);
+        ui->authErrorMessage->setText("Credenciales incorrectas");
+        delete client;
     }
 }
 
@@ -99,4 +109,9 @@ QString MainWindow::roleNumberToString(int role) {
 void MainWindow::on_forgotPasswordButton_clicked()
 {
     ui->passwordHelp->setVisible(true);
+}
+
+void MainWindow::clearInputs(){
+    ui->passwordInput->setText("");
+    ui->usernameInput->setText("");
 }

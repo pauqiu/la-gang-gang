@@ -19,6 +19,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(Security * security, RightsValidation * rights, QWidget *parent = nullptr);
     ~MainWindow();
+    void clearInputs();
 
 private slots:
     void on_logInButton_clicked();

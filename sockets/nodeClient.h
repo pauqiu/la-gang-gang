@@ -59,6 +59,10 @@ public:
     uint8_t getRole() const {
         return currentRole;
     }
+
+    const uint8_t* getToken() const {
+        return sessionToken;
+    }
     
     // Solicitar lista de sensores disponibles
     std::vector<std::string> requestSensorList() {

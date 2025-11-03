@@ -22,6 +22,16 @@ public:
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onStorageSyncRequest(buf, client_socket);
                                    });
+
+        dispatcher.registerHandler(MSG_LIST_SENSOR_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onListSensorRequest(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_DATA_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onDataRequest(buf, client_socket);
+                                   });
     }
 
     void onStorageSave(const std::vector<uint8_t>& buf, int client_socket) {
@@ -61,8 +71,197 @@ public:
         close(client_socket);
     }
 
+    void onListSensorRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        std::cout << "[StorageNode] ListSensorRequest recibido\n";
+
+        std::vector<std::string> sensorIds = getAvailableSensors();
+
+        // Crear respuesta
+        ListSensorResponse response;
+        response.message_id = MSG_LIST_SENSOR_RESPONSE;
+        response.sensorCount = sensorIds.size();
+
+        for (const auto& sensorId : sensorIds) {
+            std::array<char, 16> id;
+            std::memset(id.data(), 0, 16);
+            std::memcpy(id.data(), sensorId.c_str(), std::min(sensorId.length(), size_t(16)));
+            response.sensorIds.push_back(id);
+        }
+
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+
+        std::cout << "[StorageNode] ListSensorResponse enviado (" << sensorIds.size() << " sensores)\n";
+        close(client_socket);
+    }
+
+    // Handler para solicitud de datos de sensor
+    void onDataRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto msg = DataRequestWithoutToken::deserialize(buf);
+
+        std::string sensorId(msg.sensor_id, strnlen(msg.sensor_id, 16));
+        std::cout << "[StorageNode] DataRequest recibido - Sensor: " << sensorId
+                  << ", StartDate: " << msg.startDate
+                  << ", EndDate: " << msg.endDate << "\n";
+
+        // Mapear sensor_id string a uint8_t
+        uint8_t sensorNumId = mapSensorIdToNumber(sensorId);
+
+        if (sensorNumId == 0) {
+            std::cerr << "[StorageNode] Sensor ID desconocido: " << sensorId << "\n";
+            sendDataError(client_socket);
+            close(client_socket);
+            return;
+        }
+
+        // Buscar datos usando el mismo sistema que StorageSyncRequest
+        std::vector<SensorDataBlock> blocks = retrieveDataByDateRange(sensorNumId, msg.startDate, msg.endDate);
+
+        if (blocks.empty()) {
+            std::cout << "[StorageNode] No se encontraron datos\n";
+            sendDataError(client_socket);
+        } else {
+            sendDataResponse(client_socket, sensorId, blocks);
+        }
+
+        close(client_socket);
+    }
+
 private:
     FileSystem* filesystem;
+
+    // Mapeo de sensores conocidos
+    std::map<std::string, uint8_t> sensorMap = {
+        {"PIR001", 1},
+        {"DHT11A", 2},
+        {"HC001", 3},
+        {"VB001", 4}
+    };
+
+    // Mapeo inverso
+    std::map<uint8_t, std::string> sensorMapReverse = {
+        {1, "PIR001"},
+        {2, "DHT11A"},
+        {3, "HC001"},
+        {4, "VB001"}
+    };
+
+    uint8_t mapSensorIdToNumber(const std::string& sensorId) {
+        auto it = sensorMap.find(sensorId);
+        return (it != sensorMap.end()) ? it->second : 0;
+    }
+
+    std::string mapSensorNumberToId(uint8_t sensorNum) {
+        auto it = sensorMapReverse.find(sensorNum);
+        return (it != sensorMapReverse.end()) ? it->second : "";
+    }
+
+    std::vector<std::string> getAvailableSensors() {
+        // Retornar lista de sensores conocidos
+        // En un sistema real, escanearías los archivos del filesystem
+        return {"PIR001", "DHT11A", "HC001", "VB001"};
+    }
+
+    std::vector<SensorDataBlock> retrieveDataByDateRange(uint8_t sensorId, uint64_t startDate, uint64_t endDate) {
+        std::vector<SensorDataBlock> results;
+
+        // Buscar en todos los archivos del rango de fechas
+        for (uint64_t date = startDate; date <= endDate; date++) {
+            std::string dateStr = std::to_string(date);
+            std::string mmdd;
+
+            if (dateStr.length() >= 8) {
+                mmdd = dateStr.substr(4, 4);
+            } else if (dateStr.length() >= 4) {
+                mmdd = dateStr.substr(dateStr.length() - 4);
+            } else {
+                continue;
+            }
+
+            std::string filename = "s" + std::to_string(sensorId) + mmdd + ".dat";
+            std::vector<char> fileData = filesystem->readFile(filename);
+
+            if (fileData.empty()) continue;
+
+            // Parsear bloques del archivo
+            size_t idx = 0;
+            while (idx < fileData.size()) {
+                if (idx + 1 + 8 + 8 + 1 > fileData.size()) break;
+
+                SensorDataBlock block;
+                std::memcpy(&block.sensorId, &fileData[idx], sizeof(uint8_t));
+                idx += sizeof(uint8_t);
+
+                std::memcpy(&block.date, &fileData[idx], sizeof(uint64_t));
+                idx += sizeof(uint64_t);
+
+                std::memcpy(&block.time, &fileData[idx], sizeof(uint64_t));
+                idx += sizeof(uint64_t);
+
+                std::memcpy(&block.dataLength, &fileData[idx], sizeof(uint8_t));
+                idx += sizeof(uint8_t);
+
+                if (idx + block.dataLength > fileData.size()) break;
+
+                block.data.resize(block.dataLength);
+                std::memcpy(block.data.data(), &fileData[idx], block.dataLength);
+                idx += block.dataLength;
+
+                results.push_back(block);
+            }
+        }
+
+        std::cout << "[StorageNode] Recuperados " << results.size() << " registros\n";
+        return results;
+    }
+
+    void sendDataResponse(int client_socket, const std::string& sensorId, const std::vector<SensorDataBlock>& blocks) {
+        DataResponse response;
+        response.message_id = MSG_DATA_RESPONSE;
+        response.entriesCount = blocks.size();
+
+        for (const auto& block : blocks) {
+            SensorEntry entry;
+
+            // sensor_id
+            std::memset(entry.sensor_id, 0, 16);
+            std::memcpy(entry.sensor_id, sensorId.c_str(), std::min(sensorId.length(), size_t(16)));
+
+            entry.date = block.date;
+            entry.time = block.time;
+
+            // Desempaquetar value (2 bytes) y status (1 byte)
+            if (block.data.size() >= 3) {
+                uint16_t value = (static_cast<uint16_t>(block.data[0]) << 8) | block.data[1];
+                entry.data_value = static_cast<float>(value);
+
+                uint8_t statusByte = block.data[2];
+                std::memset(entry.status, 0, 8);
+                if (statusByte == 1) {
+                    std::memcpy(entry.status, "ALERT", 5);
+                } else {
+                    std::memcpy(entry.status, "NORMAL", 6);
+                }
+            }
+
+            response.entries.push_back(entry);
+        }
+
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+
+        std::cout << "[StorageNode] DataResponse enviado (" << response.entriesCount << " entradas)\n";
+    }
+
+    void sendDataError(int client_socket) {
+        // Enviar respuesta vacía
+        DataResponse response;
+        response.message_id = MSG_DATA_RESPONSE;
+        response.entriesCount = 0;
+
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+    }
 
     // Guardar datos en el filesystem
     bool saveToFilesystem(const StorageSave& msg) {
@@ -263,7 +462,6 @@ private:
         StorageSyncError error;
         error.message_id = MSG_STORAGE_SYNC_ERROR;
         error.errorCode = errorCode;
-22
         auto data = error.serialize();
         send_message(client_socket, data.data(), data.size());
 

@@ -21,11 +21,13 @@ class menuWindow : public QMainWindow
 public:
 
     explicit menuWindow(Security * security, RightsValidation * rights, QWidget *parent = nullptr);
+    void initialize();
     void setLogInWindow(MainWindow *newLogIn);
     void setUsername(QString user);
     void setUserRole(QString user);
     void setUIByRole();
     void loadUsersTable();
+    void setSessionToken(const uint8_t token[32]);
     ~menuWindow();
 
 private slots:
@@ -42,7 +44,14 @@ private slots:
     void on_addRoleButton_clicked();
 
     void on_filterButton_clicked();
-    void loadSensorData(uint8_t sensorId, const QString& startDate, const QString& endDate);
+
+    void loadAvailableSensors();
+    void loadSensorData(const QString& sensorId, uint64_t startDate, uint64_t endDate);
+    void populateSensorsDropdown();
+    //QString roleNumberToString(int role);
+
+    void loadUserPermissions();
+    bool hasPermission(const std::string& permission) const;
 
 private:
     Ui::menuWindow *ui;
@@ -53,6 +62,9 @@ private:
     Security * security;
     RightsValidation * rights;
     int rolesAmount;
+    uint8_t sessionToken[32];
+    QStringList availableSensors;
+    std::vector<std::string> userPermissions;
 
 };
 

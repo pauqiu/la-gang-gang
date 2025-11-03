@@ -233,7 +233,7 @@ private:
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to("127.0.0.1", 5003);
+        int storageSock = connect_to("127.0.0.1", 5004);
         
         if (storageSock < 0) {
             std::cerr << "[Proxy] Error conectando con Storage\n";
@@ -275,7 +275,7 @@ private:
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to("127.0.0.1", 5003);
+        int storageSock = connect_to("127.0.0.1", 5004);
         
         if (storageSock < 0) {
             std::cerr << "[Proxy] Error conectando con Storage\n";

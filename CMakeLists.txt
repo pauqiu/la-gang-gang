@@ -42,6 +42,10 @@ set(RIGHTS_SOURCES
     include/RightsValidation/RoleManager.h
     src/RightsValidation/PermissionsManager.cpp
     include/RightsValidation/PermissionsManager.h
+<<<<<<< HEAD
+=======
+    include/permissions_constants.h
+>>>>>>> origin/DemoV2
 )
 
 # -----------------------------
@@ -87,6 +91,8 @@ set(SOCKETS_SOURCES
     sockets/communication.h
     sockets/nodeStorage.h
     sockets/nodeReceptor.h
+    sockets/nodeProxy.h
+
 )
 
 # =====================================
@@ -131,7 +137,6 @@ add_executable(nodeAuthMain
 target_include_directories(nodeAuthMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeAuthMain PRIVATE sodium Qt${QT_VERSION_MAJOR}::Core)
 
-
 # =====================================
 # Ejecutable nodo Storage independiente
 # =====================================
@@ -168,6 +173,18 @@ add_executable(storageTestClient
 target_include_directories(storageTestClient PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(storageTestClient PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 set_target_properties(storageTestClient PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
+# Ejecutable nodo Proxy independiente
+# =====================================
+add_executable(proxyMain
+    sockets/proxyMain.cpp
+)
+target_include_directories(proxyMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(proxyMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(proxyMain PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 

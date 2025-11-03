@@ -78,7 +78,7 @@ static void injectSampleRoles(FileSystem &fs) {
 }
 
 static void injectSamplePermissions(FileSystem &fs) {
-    const std::string permsFile = "permissions.txt";
+    const std::string permsFile = "perms.txt";
 
     fs.createFile(permsFile);
 
@@ -95,7 +95,7 @@ static void injectSamplePermissions(FileSystem &fs) {
     }
 
     fs.overwriteFile(permsFile, permsContent);
-    std::cout << "permissions.txt poblado con " << samplePermissions.size() << " permisos.\n";
+    std::cout << "perms.txt poblado con " << samplePermissions.size() << " permisos.\n";
 }
 
 static void injectSampleData(FileSystem &fs) {

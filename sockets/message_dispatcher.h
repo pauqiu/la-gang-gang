@@ -27,7 +27,6 @@ public:
             std::cerr << "[WARN] Mensaje desconocido ID=" << (int)id << std::endl;
     }
 
-
     void dispatchReceptor(const std::vector<std::string>& buffer, int client_socket) {
         if (buffer.empty()) return;
 
