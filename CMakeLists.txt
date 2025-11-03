@@ -42,10 +42,7 @@ set(RIGHTS_SOURCES
     include/RightsValidation/RoleManager.h
     src/RightsValidation/PermissionsManager.cpp
     include/RightsValidation/PermissionsManager.h
-<<<<<<< HEAD
-=======
     include/permissions_constants.h
->>>>>>> origin/DemoV2
 )
 
 # -----------------------------

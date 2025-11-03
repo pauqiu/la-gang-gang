@@ -945,21 +945,23 @@ struct SensorsData {
     static SensorsData deserialize(const std::vector<uint8_t>& buffer) {
         SensorsData msg;
         if (!buffer.empty()) {
-            // message_id (big-endian)
-            msg.message_id = (static_cast<uint16_t>(buffer[0]) << 8)
-                             | static_cast<uint16_t>(buffer[1]);
+            // little-endian)
+            msg.message_id = (static_cast<uint16_t>(buffer[1]) << 8)
+                             | static_cast<uint16_t>(buffer[0]);
 
-            // echo (big-endian)
-            msg.echo = (static_cast<uint16_t>(buffer[2]) << 8)
-                       | static_cast<uint16_t>(buffer[3]);
+            msg.echo = (static_cast<uint16_t>(buffer[3]) << 8)
+                       | static_cast<uint16_t>(buffer[2]);
 
-            // volume (big-endian)
-            msg.volume = (static_cast<uint16_t>(buffer[4]) << 8)
-                         | static_cast<uint16_t>(buffer[5]);
+            std::cout << "echo" << std::endl;
 
-            // temperature (big-endian)
-            msg.temperature = (static_cast<uint16_t>(buffer[6]) << 8)
-                              | static_cast<uint16_t>(buffer[7])
+            // pasar a little-endian
+            // msg.volume = (static_cast<uint16_t>(buffer[4]) << 8)
+            //              | static_cast<uint16_t>(buffer[5]);
+// 
+            // // temperature (big-endian)
+            // msg.temperature = (static_cast<uint16_t>(buffer[6]) << 8)
+            //                   | static_cast<uint16_t>(buffer[7]);
+
         }
         return msg;
     }

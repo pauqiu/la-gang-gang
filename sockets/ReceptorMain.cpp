@@ -1,4 +1,5 @@
 #include "nodeReceptor.h"
+#include "filesystem.h"
 #include <QCoreApplication>
 
 int main(int argc, char *argv[]) {
@@ -9,10 +10,10 @@ int main(int argc, char *argv[]) {
     FileSystem receptor("ReceptorLogs.bin");
     
     // Crear NodeReceptor en puerto 9090
-    NodeStorage storageNode(9090, &receptor);
-    storageNode.start();
+    nodeReceptor receptorNode(9090, &receptor);
+    receptorNode.start();
     
-    std::cout << "[System] Nodo Storage iniciado en puerto 9090.\n";
+    std::cout << "[System] Nodo Receptor iniciado en puerto 9090.\n";
     std::cout << "[System] Escribe '#' para detenerlo.\n";
     
     std::string input;
