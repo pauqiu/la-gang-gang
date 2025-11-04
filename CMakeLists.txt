@@ -163,6 +163,7 @@ set_target_properties(storageTestClient PROPERTIES
 # =====================================
 add_executable(proxyMain
     sockets/proxyMain.cpp
+    src/filesystem.cpp
 )
 target_include_directories(proxyMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(proxyMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)

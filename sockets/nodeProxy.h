@@ -1,6 +1,8 @@
 #pragma once
 #include "node_base.h"
 #include "messages.h"
+#include "filesystem.h"
+#include "../include/logger.h"
 #include <iostream>
 #include <map>
 #include <cstring>
@@ -8,7 +10,7 @@
 
 class NodeProxy : public NodeBase {
 public:
-    NodeProxy(int port) : NodeBase(port) {
+    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "pLogs.bin") {
         dispatcher.registerHandler(MSG_TOKEN_REGISTER, 
             [this](const std::vector<uint8_t>& buf, int client_socket) { 
                 onTokenRegister(buf, client_socket); 
@@ -31,6 +33,8 @@ public:
     }
 
 private:
+    Logger logger;
+    
     // TODO: Integrar con filesystem para persistir tokens
     // Los tokens deben guardarse en archivo y leerse desde ahí
     // Estructura temporal en memoria (se pierde al reiniciar)
@@ -55,9 +59,9 @@ private:
         validTokens[username] = data;
         
         std::string tokenHex = tokenToString(msg.token);
-        std::cout << "[Proxy] TokenNotif recibido - User: " << username 
-                  << ", Role: " << (int)msg.role 
-                  << ", Token: " << tokenHex.substr(0, 16) << "...\n";
+        logger.info("TokenNotif recibido - User: " + username + 
+                    " | Role: " + std::to_string((int)msg.role) + 
+                    " | Token: " + tokenHex.substr(0, 16) + "...");
         
         close(client_socket);
     }
@@ -70,14 +74,16 @@ private:
         std::string username(msg.username, strnlen(msg.username, 16));
         std::string tokenHex = tokenToString(msg.token);
         
-        std::cout << "[Proxy] Validando sesión - User: " << username 
-                  << ", Token: " << tokenHex.substr(0, 16) << "...\n";
+        logger.info("Validando sesión - User: " + username + 
+                    " | Token: " + tokenHex.substr(0, 16) + "...");
         
         // TODO: Buscar token en filesystem en lugar de memoria
         if (isTokenValid(username, msg.token)) {
             sendSessionOk(client_socket, validTokens[username].role);
+            logger.success("Sesión validada exitosamente - User: " + username);
         } else {
             sendSessionError(client_socket, 3);
+            logger.warning("Sesión inválida - User: " + username);
         }
         
         close(client_socket);
@@ -104,7 +110,7 @@ private:
         
         auto data = response.serialize();
         send_message(client_socket, data.data(), data.size());
-        std::cout << "[Proxy] SessionOk enviado (role=" << (int)role << ")\n";
+        logger.info("SessionOk enviado (role=" + std::to_string((int)role) + ")");
     }
 
     void sendSessionError(int client_socket, uint8_t errorCode) {
@@ -114,7 +120,7 @@ private:
         
         auto data = error.serialize();
         send_message(client_socket, data.data(), data.size());
-        std::cout << "[Proxy] SessionError enviado (error_code=" << (int)errorCode << ")\n";
+        logger.error("SessionError enviado (error_code=" + std::to_string((int)errorCode) + ")");
     }
 
     std::string tokenToString(const uint8_t token[32]) {
@@ -144,18 +150,18 @@ private:
         // 1. Deserializar mensaje del cliente
         auto clientMsg = ListSensorRequest::deserialize(buf);
         
-        std::cout << "[Proxy] ListSensorRequest recibido\n";
+        logger.info("ListSensorRequest recibido");
         
         // 2. Validar token
         std::string username;
         if (!validateToken(clientMsg.token, username)) {
-            std::cout << "[Proxy] Token inválido, rechazando solicitud\n";
+            logger.warning("Token inválido, rechazando solicitud de lista de sensores");
             sendSessionError(client_socket, 3);
             close(client_socket);
             return;
         }
         
-        std::cout << "[Proxy] Token válido para usuario: " << username << "\n";
+        logger.info("Token válido para usuario: " + username);
         
         // 3. Crear mensaje sin token para storage
         ListSensorRequestWithoutToken storageMsg = createStorageListRequest();
@@ -166,9 +172,9 @@ private:
         // 5. Reenviar respuesta al cliente sin modificar
         if (!storageResponse.empty()) {
             send_message(client_socket, storageResponse.data(), storageResponse.size());
-            std::cout << "[Proxy] ListSensorResponse reenviada al cliente\n";
+            logger.success("ListSensorResponse reenviada al cliente");
         } else {
-            std::cerr << "[Proxy] Error obteniendo lista de sensores del storage\n";
+            logger.error("Error obteniendo lista de sensores del storage");
         }
         
         close(client_socket);
@@ -180,20 +186,20 @@ private:
         auto clientMsg = DataRequest::deserialize(buf);
         
         std::string sensorId(clientMsg.sensor_id, strnlen(clientMsg.sensor_id, 16));
-        std::cout << "[Proxy] DataRequest recibido - Sensor: " << sensorId 
-                  << ", StartDate: " << clientMsg.startDate 
-                  << ", EndDate: " << clientMsg.endDate << "\n";
+        logger.info("DataRequest recibido - Sensor: " + sensorId + 
+                    " | StartDate: " + std::to_string(clientMsg.startDate) + 
+                    " | EndDate: " + std::to_string(clientMsg.endDate));
         
         // 2. Validar token
         std::string username;
         if (!validateToken(clientMsg.token, username)) {
-            std::cout << "[Proxy] Token inválido, rechazando solicitud\n";
+            logger.warning("Token inválido, rechazando solicitud de datos");
             sendSessionError(client_socket, 3);
             close(client_socket);
             return;
         }
         
-        std::cout << "[Proxy] Token válido para usuario: " << username << "\n";
+        logger.info("Token válido para usuario: " + username);
         
         // 3. Crear mensaje sin token para storage
         DataRequestWithoutToken storageMsg = createStorageRequest(clientMsg);
@@ -204,9 +210,9 @@ private:
         // 5. Reenviar respuesta al cliente
         if (!storageResponse.empty()) {
             send_message(client_socket, storageResponse.data(), storageResponse.size());
-            std::cout << "[Proxy] Respuesta reenviada al cliente\n";
+            logger.success("Respuesta de datos reenviada al cliente");
         } else {
-            std::cerr << "[Proxy] Error obteniendo respuesta del storage\n";
+            logger.error("Error obteniendo respuesta del storage");
         }
         
         close(client_socket);
@@ -229,19 +235,19 @@ private:
     
     // Consultar storage y obtener respuesta
     std::vector<uint8_t> queryStorage(const DataRequestWithoutToken& request) {
-        std::cout << "[Proxy] Enviando DataRequestWithoutToken al storage (sin token)\n";
+        logger.info("Enviando DataRequestWithoutToken al storage (sin token)");
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
         int storageSock = connect_to("127.0.0.1", 5004);
         
         if (storageSock < 0) {
-            std::cerr << "[Proxy] Error conectando con Storage\n";
+            logger.error("Error conectando con Storage");
             return {};
         }
         
         if (!send_message(storageSock, requestData.data(), requestData.size())) {
-            std::cerr << "[Proxy] Error enviando mensaje al Storage\n";
+            logger.error("Error enviando mensaje al Storage");
             close(storageSock);
             return {};
         }
@@ -252,12 +258,12 @@ private:
         close(storageSock);
         
         if (bytes <= 0) {
-            std::cerr << "[Proxy] Error recibiendo respuesta del Storage\n";
+            logger.error("Error recibiendo respuesta del Storage");
             return {};
         }
         
         response.resize(bytes);
-        std::cout << "[Proxy] Respuesta recibida del storage (" << bytes << " bytes)\n";
+        logger.info("Respuesta recibida del storage (" + std::to_string(bytes) + " bytes)");
         
         return response;
     }
@@ -271,19 +277,19 @@ private:
     
     // Consultar storage para obtener lista de sensores
     std::vector<uint8_t> queryStorageForSensorList(const ListSensorRequestWithoutToken& request) {
-        std::cout << "[Proxy] Enviando ListSensorRequestWithoutToken al storage (sin token)\n";
+        logger.info("Enviando ListSensorRequestWithoutToken al storage (sin token)");
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
         int storageSock = connect_to("127.0.0.1", 5004);
         
         if (storageSock < 0) {
-            std::cerr << "[Proxy] Error conectando con Storage\n";
+            logger.error("Error conectando con Storage para lista de sensores");
             return {};
         }
         
         if (!send_message(storageSock, requestData.data(), requestData.size())) {
-            std::cerr << "[Proxy] Error enviando mensaje al Storage\n";
+            logger.error("Error enviando mensaje al Storage para lista de sensores");
             close(storageSock);
             return {};
         }
@@ -294,12 +300,12 @@ private:
         close(storageSock);
         
         if (bytes <= 0) {
-            std::cerr << "[Proxy] Error recibiendo respuesta del Storage\n";
+            logger.error("Error recibiendo lista de sensores del Storage");
             return {};
         }
         
         response.resize(bytes);
-        std::cout << "[Proxy] Lista de sensores recibida del storage (" << bytes << " bytes)\n";
+        logger.success("Lista de sensores recibida del storage (" + std::to_string(bytes) + " bytes)");
         
         return response;
     }
