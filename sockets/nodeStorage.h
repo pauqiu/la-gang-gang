@@ -2,6 +2,7 @@
 #include "node_base.h"
 #include "messages.h"
 #include "filesystem.h"
+#include "../include/logger.h"
 #include <iostream>
 #include <cstring>
 #include <vector>
@@ -10,7 +11,7 @@
 class NodeStorage : public NodeBase {
 public:
     NodeStorage(int port, FileSystem* fileSystemInstance)
-        : NodeBase(port), filesystem(fileSystemInstance) {
+        : NodeBase(port), filesystem(fileSystemInstance), logger(fileSystemInstance, "sLogs.bin") {
 
         // Registrar handlers para cada tipo de mensaje
         dispatcher.registerHandler(MSG_STORAGE_SAVE,
@@ -44,8 +45,10 @@ public:
 
         if (success) {
             sendStorageResponse(client_socket, 0);  // 0 = Done
+            logger.success("Datos guardados exitosamente - Sensor: " + std::to_string((int)msg.sensorId));
         } else {
             sendStorageError(client_socket, 402);  // 402 = Write failed
+            logger.error("Error al guardar datos - Sensor: " + std::to_string((int)msg.sensorId));
         }
 
         close(client_socket);
@@ -54,8 +57,9 @@ public:
     void onStorageSyncRequest(const std::vector<uint8_t>& buf, int client_socket) {
         auto msg = StorageSyncRequest::deserialize(buf);
 
-        std::cout << "[StorageNode] Solicitud de sincronización - Sensor: " << (int)msg.sensorId
-                  << ", StartDate: " << msg.startDate << ", EndDate: " << msg.endDate << "\n";
+        std::string logMsg = "Solicitud de sincronización - Sensor: " + std::to_string((int)msg.sensorId) +
+                             " | Rango: " + std::to_string(msg.startDate) + " - " + std::to_string(msg.endDate);
+        logger.info(logMsg);
 
         // Recuperar datos del filesystem
         std::vector<SensorDataBlock> dataBlocks = retrieveDataFromFilesystem(msg);
@@ -63,8 +67,10 @@ public:
         // Enviar respuesta
         if (!dataBlocks.empty()) {
             sendStorageSyncResponse(client_socket, dataBlocks);
+            logger.success("Sincronización exitosa - " + std::to_string(dataBlocks.size()) + " bloques enviados");
         } else {
             sendStorageSyncError(client_socket, 404);  // 404 = Data not found
+            logger.warning("No se encontraron datos para la sincronización solicitada");
         }
 
         close(client_socket);
@@ -99,9 +105,9 @@ public:
         auto msg = DataRequestWithoutToken::deserialize(buf);
 
         std::string sensorId(msg.sensor_id, strnlen(msg.sensor_id, 16));
-        std::cout << "[StorageNode] DataRequest recibido - Sensor: " << sensorId
-                  << ", StartDate: " << msg.startDate
-                  << ", EndDate: " << msg.endDate << "\n";
+        std::string logMsg = "Solicitud de datos - Sensor: " + sensorId +
+                             " | Rango: " + std::to_string(msg.startDate) + " - " + std::to_string(msg.endDate);
+        logger.info(logMsg);
 
         // Mapear sensor_id string a uint8_t
         uint8_t sensorNumId = mapSensorIdToNumber(sensorId);
@@ -117,7 +123,7 @@ public:
         std::vector<SensorDataBlock> blocks = retrieveDataByDateRange(sensorNumId, msg.startDate, msg.endDate);
 
         if (blocks.empty()) {
-            std::cout << "[StorageNode] No se encontraron datos\n";
+            logger.warning("No se encontraron datos para el sensor: " + sensorId);
             sendDataError(client_socket);
         } else {
             sendDataResponse(client_socket, sensorId, blocks);
@@ -128,6 +134,7 @@ public:
 
 private:
     FileSystem* filesystem;
+    Logger logger;
 
     // Mapeo de sensores conocidos
     std::map<std::string, uint8_t> sensorMap = {

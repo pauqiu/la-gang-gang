@@ -28,6 +28,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 set(FILESYSTEM_SOURCES
     src/filesystem.cpp
     include/filesystem.h
+    include/logger.h
 )
 
 # -----------------------------

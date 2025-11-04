@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     Security security(&storage);
 
     // Pasar Security al NodeAuth
-    NodeAuth auth(5001, &security);
+    NodeAuth auth(5001, &security, &storage);
     auth.start();
 
     std::cout << "[System] Nodo Auth iniciado. Escribe '#' para detenerlo.\n";
