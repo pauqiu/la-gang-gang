@@ -131,18 +131,18 @@ private:
 
     // Mapeo de sensores conocidos
     std::map<std::string, uint8_t> sensorMap = {
-        {"PIR001", 1},
-        {"DHT11A", 2},
-        {"HC001", 3},
-        {"VB001", 4}
+        {"HC-SR04", 1},
+        {"SW-420", 2},
+        {"KY-038", 3},
+        {"DHT11", 4}
     };
 
     // Mapeo inverso
     std::map<uint8_t, std::string> sensorMapReverse = {
-        {1, "PIR001"},
-        {2, "DHT11A"},
-        {3, "HC001"},
-        {4, "VB001"}
+        {1, "HC-SR04"},
+        {2, "SW-420"},
+        {3, "KY-038"},
+        {4, "DHT11"}
     };
 
     uint8_t mapSensorIdToNumber(const std::string& sensorId) {
@@ -158,7 +158,7 @@ private:
     std::vector<std::string> getAvailableSensors() {
         // Retornar lista de sensores conocidos
         // En un sistema real, escanearías los archivos del filesystem
-        return {"PIR001", "DHT11A", "HC001", "VB001"};
+        return {"HC-SR04", "SW-420", "KY-038", "DHT11"};
     }
 
     std::vector<SensorDataBlock> retrieveDataByDateRange(uint8_t sensorId, uint64_t startDate, uint64_t endDate) {

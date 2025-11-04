@@ -1,9 +1,9 @@
 #pragma once
 #include <QDialog>
-#include <QCheckBox>
-#include <QVBoxLayout>
 #include <QGroupBox>
+#include <QVBoxLayout>
 #include <QScrollArea>
+#include <QLabel>
 #include <vector>
 #include <map>
 #include "permissions_constants.h"
@@ -29,9 +29,9 @@ private slots:
 
 private:
     Ui::addRoleWindow *ui;
-    std::map<std::string, QCheckBox*> permissionCheckboxes;
+    std::map<std::string, QGroupBox*> categoryCheckboxes;  // nombre_categoria -> QGroupBox
     QScrollArea* scrollArea;
 
-    void setupPermissionsUI();
-    void loadPermissionsFromString(const QString& permissions);
+    void setupCategoriesUI();
+    void loadCategoriesFromPermissions(const QString& permissions);
 };
