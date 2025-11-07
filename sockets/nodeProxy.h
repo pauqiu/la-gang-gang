@@ -3,6 +3,7 @@
 #include "messages.h"
 #include "filesystem.h"
 #include "../include/logger.h"
+#include "endpoints.h"
 #include <iostream>
 #include <map>
 #include <cstring>
@@ -239,7 +240,7 @@ private:
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to("127.0.0.1", 5004);
+        int storageSock = connect_to(getStorageIp(), getStoragePort());
         
         if (storageSock < 0) {
             logger.error("Error conectando con Storage");
@@ -281,7 +282,7 @@ private:
         
         // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to("127.0.0.1", 5004);
+        int storageSock = connect_to(getStorageIp(), getStoragePort());
         
         if (storageSock < 0) {
             logger.error("Error conectando con Storage para lista de sensores");

@@ -3,14 +3,15 @@
 #include "security.h"
 #include "filesystem.h"
 #include "../include/logger.h"
+#include "endpoints.h"
 #include <iostream>
 #include <cstring>
 #include <random>
 
 class NodeAuth : public NodeBase {
 public:
-    NodeAuth(int port, Security* securityInstance, FileSystem* fs)
-        : NodeBase(port), security(securityInstance), logger(fs, "aLogs.bin") {
+    NodeAuth(int port, Security* securityInstance)
+        : NodeBase(port), security(securityInstance) {
         dispatcher.registerHandler(MSG_AUTHENTICATION,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onAuthentication(buf, client_socket);
@@ -30,12 +31,12 @@ public:
         // Enviar respuesta
         if (credentialsValid) {
             sendSuccessResponse(client_socket, msg.user, userRole);
-            logger.success("Autenticación exitosa - Usuario: " + msg.user +
-                           " | Rol: " + std::to_string((int)userRole));
+            /*logger.success("Autenticación exitosa - Usuario: " + msg.user +
+                           " | Rol: " + std::to_string((int)userRole));*/
         } else {
             sendErrorResponse(client_socket, errorCode);
-            logger.warning("Intento de autenticación fallido - Usuario: " + msg.user +
-                           " | Error code: " + std::to_string((int)errorCode));
+            /*logger.warning("Intento de autenticación fallido - Usuario: " + msg.user +
+                           " | Error code: " + std::to_string((int)errorCode));*/
         }
 
         close(client_socket);
@@ -43,7 +44,7 @@ public:
 
 private:
     Security* security;  // Puntero a Security
-    Logger logger;
+    //Logger logger;
 
 
     void validateCredentials(const AuthMessage& msg, bool& valid,
@@ -61,14 +62,14 @@ private:
 
             QString roleStr = security->getUserRole(username);  // Solo para logging
 
-            std::string logMsg = "Credenciales validadas - Usuario: " + msg.user +
+            /*std::string logMsg = "Credenciales validadas - Usuario: " + msg.user +
                                  " | Rol: " + roleStr.toStdString() +
-                                 " (" + std::to_string((int)role) + ")";
-            logger.info(logMsg);
+                                 " (" + std::to_string((int)role) + ")";*/
+            //logger.info(logMsg);
         } else {
             valid = false;
             errorCode = 1;
-            logger.warning("Validación fallida - Usuario: " + msg.user);
+            //logger.warning("Validación fallida - Usuario: " + msg.user);
         }
     }
 
@@ -101,7 +102,7 @@ private:
 
         // Enviar token al proxy (puerto 5002)
         auto data = tokenMsg.serialize();
-        sendTo("127.0.0.1", 5002, data);
+        sendTo(getProxyIp(), getProxyPort(), data);
         std::cout << "[AuthNode] TokenNotif enviado a Proxy (user=" << username << ", role=" << (int)role << ")\n";
     }
 

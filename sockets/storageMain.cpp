@@ -1,5 +1,6 @@
 #include "nodeStorage.h"
 #include "filesystem.h"
+#include "endpoints.h"
 #include <iostream>
 #include <QCoreApplication>
 
@@ -9,12 +10,15 @@ int main(int argc, char *argv[]) {
     
     // Crear instancia de FileSystem
     FileSystem storage("sensors.bin");
+
+    loadEndpoints("endpoints.txt");
     
     // Crear NodeStorage en puerto 5004
-    NodeStorage storageNode(5004, &storage);
+    NodeStorage storageNode(getStoragePort(), &storage);
     storageNode.start();
     
-    std::cout << "[System] Nodo Storage iniciado en puerto 5004.\n";
+    std::cout << "[System] Nodo Storage iniciado en puerto " << getStoragePort() << ".\n";
+    std::cout << "IP -> " << getStorageIp() << std::endl;
     std::cout << "[System] Escribe '#' para detenerlo.\n";
     
     std::string input;

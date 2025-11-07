@@ -89,6 +89,8 @@ set(SOCKETS_SOURCES
     sockets/communication.h
     sockets/nodeStorage.h
     sockets/nodeProxy.h
+    sockets/endpoints.h
+    sockets/endpoints.cpp
 )
 
 # =====================================
@@ -128,6 +130,7 @@ add_executable(nodeAuthMain
     src/security.cpp
     src/filesystem.cpp
     src/encryptation.cpp
+    sockets/endpoints.cpp
 )
 target_include_directories(nodeAuthMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeAuthMain PRIVATE sodium Qt${QT_VERSION_MAJOR}::Core)
@@ -138,6 +141,7 @@ target_link_libraries(nodeAuthMain PRIVATE sodium Qt${QT_VERSION_MAJOR}::Core)
 add_executable(nodeStorageMain
     sockets/storageMain.cpp
     src/filesystem.cpp
+    sockets/endpoints.cpp
 )
 target_include_directories(nodeStorageMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeStorageMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
@@ -164,6 +168,7 @@ set_target_properties(storageTestClient PROPERTIES
 add_executable(proxyMain
     sockets/proxyMain.cpp
     src/filesystem.cpp
+    sockets/endpoints.cpp
 )
 target_include_directories(proxyMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(proxyMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)

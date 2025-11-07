@@ -2,6 +2,7 @@
 #include "./ui_mainwindow.h"
 #include "menuwindow.h"
 #include "../sockets/nodeClient.h"
+#include "../sockets/endpoints.h"
 #include <QDebug>
 #include <QMessageBox>
 
@@ -16,6 +17,8 @@ MainWindow::MainWindow(Security * security, RightsValidation * rights, QWidget *
     ui->passwordMessage->setVisible(false);
     ui->passwordHelp->setVisible(false);
     ui->authErrorMessage->setVisible(false);
+
+    loadEndpoints("endpoints.txt");
 }
 
 MainWindow::~MainWindow()

@@ -1,6 +1,7 @@
 #pragma once
 #include "communication.h"
 #include "messages.h"
+#include "endpoints.h"
 #include <iostream>
 #include <vector>
 #include <iomanip>
@@ -128,7 +129,7 @@ private:
     std::string currentUsername;
 
     int connectToAuthServer() {
-        int sock = connect_to("127.0.0.1", 5001);
+        int sock = connect_to(getAuthIp(), getAuthPort());
         if (sock < 0) {
             std::cerr << "[Client] Error al conectar con Auth.\n";
         }
@@ -136,7 +137,7 @@ private:
     }
     
     int connectToProxy() {
-        int sock = connect_to("127.0.0.1", 5002);
+        int sock = connect_to(getProxyIp(), getProxyPort());
         if (sock < 0) {
             std::cerr << "[Client] Error al conectar con Proxy.\n";
         }

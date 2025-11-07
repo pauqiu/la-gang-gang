@@ -3,6 +3,7 @@
 #include "menuwindow.h"
 #include "ui_menuwindow.h"
 #include "../sockets/nodeProxy.h"
+#include "../sockets/endpoints.h"
 
 #include <sstream>
 #include <QPushButton>
@@ -401,7 +402,7 @@ void menuWindow::setSessionToken(const uint8_t token[32]) {
 void menuWindow::loadAvailableSensors() {
     availableSensors.clear();
 
-    int sock = connect_to("127.0.0.1", 5002);
+    int sock = connect_to(getProxyIp(), getProxyPort());
     if (sock < 0) {
         qDebug() << "Error conectando con Proxy";
         return;
@@ -469,7 +470,7 @@ void menuWindow::on_filterButton_clicked()
 }
 
 void menuWindow::loadSensorData(const QString& sensorId, uint64_t startDate, uint64_t endDate) {
-    int sock = connect_to("127.0.0.1", 5002);
+    int sock = connect_to(getProxyIp(), getProxyPort());
     if (sock < 0) {
         qDebug() << "Error conectando con Proxy";
         ui->filterErrorMsg->setText("Connection error");

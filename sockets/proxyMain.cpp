@@ -1,13 +1,16 @@
 #include "nodeProxy.h"
 #include "filesystem.h"
+#include "endpoints.h"
 #include <iostream>
 
 int main() {
     FileSystem proxyFs("proxy_disk.bin");
-    NodeProxy proxy(5002, &proxyFs);
+    loadEndpoints("endpoints.txt");
+    NodeProxy proxy(getProxyPort(), &proxyFs);
     proxy.start();
 
-    std::cout << "[System] Nodo Proxy iniciado en puerto 5002. Escribe '#' para detenerlo.\n";
+    std::cout << "[System] Nodo Proxy iniciado en puerto " << getProxyPort() << ". Escribe '#' para detenerlo.\n";
+    std::cout << "IP -> " << getProxyIp() << std::endl;
 
     std::string input;
     while (true) {

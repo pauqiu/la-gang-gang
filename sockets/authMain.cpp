@@ -1,6 +1,7 @@
 #include "nodeAuth.h"
 #include "security.h"
 #include "filesystem.h"
+#include "endpoints.h"
 #include <iostream>
 #include <QCoreApplication>
 
@@ -14,11 +15,14 @@ int main(int argc, char *argv[]) {
     // Crear instancia de Security con FileSystem
     Security security(&storage);
 
+    loadEndpoints("endpoints.txt");
+
     // Pasar Security al NodeAuth
-    NodeAuth auth(5001, &security, &storage);
+    NodeAuth auth(getAuthPort(), &security);
     auth.start();
 
     std::cout << "[System] Nodo Auth iniciado. Escribe '#' para detenerlo.\n";
+    std::cout << "IP -> " << getAuthIp() << std::endl;
     std::cout << "[System] Usuarios cargados: " << security.getUsers().size() << "\n";
 
     std::string input;
