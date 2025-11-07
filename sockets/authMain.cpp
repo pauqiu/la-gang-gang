@@ -10,15 +10,16 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
 
     // Crear instancia de FileSystem
-    FileSystem storage("disk.bin");
+    FileSystem storage("aLogs.bin");
+    FileSystem users("disk.bin");
 
     // Crear instancia de Security con FileSystem
-    Security security(&storage);
+    Security security(&users);
 
     loadEndpoints("endpoints.txt");
 
     // Pasar Security al NodeAuth
-    NodeAuth auth(getAuthPort(), &security);
+    NodeAuth auth(getAuthPort(), &security, &storage);
     auth.start();
 
     std::cout << "[System] Nodo Auth iniciado. Escribe '#' para detenerlo.\n";
