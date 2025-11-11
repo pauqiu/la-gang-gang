@@ -88,6 +88,7 @@ set(SOCKETS_SOURCES
     sockets/nodeAuth.h
     sockets/communication.h
     sockets/nodeStorage.h
+    sockets/nodeReceptor.h
     sockets/nodeProxy.h
     sockets/endpoints.h
     sockets/endpoints.cpp
@@ -103,7 +104,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${RIGHTS_SOURCES}
         ${GUI_SOURCES}
         ${SECURITY_SOURCES}
-        ${SOCKETS_SOURCES}  # solo NodeClient se usa aquí
+        ${SOCKETS_SOURCES}
+        sockets/nodeReceptor.h  # solo NodeClient se usa aquí
     )
 else()
     add_executable(la-gang-gang
@@ -146,6 +148,19 @@ add_executable(nodeStorageMain
 target_include_directories(nodeStorageMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeStorageMain PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 set_target_properties(nodeStorageMain PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
+# Ejecutable nodo Receptor
+# =====================================
+add_executable(nodeReceptor
+    sockets/ReceptorMain.cpp
+    src/filesystem.cpp
+)
+target_include_directories(nodeReceptor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(nodeReceptor PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(nodeReceptor PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 

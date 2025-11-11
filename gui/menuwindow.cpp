@@ -1,3 +1,4 @@
+
 #include "adduserwindow.h"
 #include "addrolewindow.h"
 #include "menuwindow.h"
@@ -63,8 +64,8 @@ menuWindow::~menuWindow()
 }
 
 void menuWindow::initialize() {
-        loadAvailableSensors();
-        populateSensorsDropdown();
+    loadAvailableSensors();
+    populateSensorsDropdown();
 }
 
 void menuWindow::setLogInWindow(MainWindow *newLogIn)

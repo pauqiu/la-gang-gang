@@ -23,6 +23,7 @@ public:
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onStorageSyncRequest(buf, client_socket);
                                    });
+
         dispatcher.registerHandler(MSG_LIST_SENSOR_REQUEST,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onListSensorRequest(buf, client_socket);
@@ -468,7 +469,6 @@ private:
         StorageSyncError error;
         error.message_id = MSG_STORAGE_SYNC_ERROR;
         error.errorCode = errorCode;
-
         auto data = error.serialize();
         send_message(client_socket, data.data(), data.size());
 

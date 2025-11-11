@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include "messages.h"
+
 class MessageDispatcher {
 public:
     using Handler = std::function<void(const std::vector<uint8_t>&, int)>;
@@ -15,11 +17,12 @@ public:
 
     void dispatch(const std::vector<uint8_t>& buffer, int client_socket) {
         if (buffer.empty()) return;
-        uint8_t id = buffer[0];
-        if (handlers.count(id))
+        uint8_t id = (uint8_t)buffer[0];
+        if (handlers.count(id)) {
             handlers[id](buffer, client_socket);
-        else
-            std::cerr << "[WARN] Mensaje desconocido ID=" << (int)id << std::endl;
+        } else {
+            std::cerr << "[WARN] Mensaje desconocido ID=" << (uint16_t)id << std::endl;
+        }
     }
 
 private:
