@@ -1,6 +1,7 @@
 #include "addrolewindow.h"
 #include "ui_addrolewindow.h"
 #include <QPushButton>
+#include <sstream>
 
 addRoleWindow::addRoleWindow(QWidget *parent)
     : QDialog(parent)
@@ -16,7 +17,7 @@ addRoleWindow::addRoleWindow(QWidget *parent)
         ui->descriptionInput->setVisible(false);
     }
 
-    setupPermissionsUI();
+    setupCategoriesUI();
 
     connect(ui->buttonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked,
             this, &addRoleWindow::validateInputs);
@@ -26,7 +27,7 @@ addRoleWindow::addRoleWindow(const QString &role, const QString &permissions, QW
     : addRoleWindow(parent)
 {
     ui->roleInput->setText(role);
-    loadPermissionsFromString(permissions);
+    loadCategoriesFromPermissions(permissions);
 }
 
 addRoleWindow::~addRoleWindow()
@@ -34,56 +35,57 @@ addRoleWindow::~addRoleWindow()
     delete ui;
 }
 
-void addRoleWindow::setupPermissionsUI()
+void addRoleWindow::setupCategoriesUI()
 {
     scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
-    scrollArea->setMinimumHeight(350);
-    scrollArea->setMaximumHeight(450);
+    scrollArea->setMinimumHeight(400);
+    scrollArea->setMaximumHeight(500);
 
     QWidget* scrollWidget = new QWidget();
     QVBoxLayout* mainLayout = new QVBoxLayout(scrollWidget);
-    mainLayout->setSpacing(10);
+    mainLayout->setSpacing(15);
 
-    // Agrupar permisos por categoría
-    for (int cat = SystemPermissions::SYSTEM_ADMIN; cat <= SystemPermissions::AUDIT; cat++) {
-        SystemPermissions::Category category = static_cast<SystemPermissions::Category>(cat);
+    // Añadir label explicativo
+    QLabel* infoLabel = new QLabel("Select the permission categories for this role:");
+    infoLabel->setStyleSheet("font-weight: bold; color: #333; margin-bottom: 10px;");
+    mainLayout->addWidget(infoLabel);
 
+    // Crear checkbox para cada categoría
+    for (const auto& category : SystemPermissions::ALL_CATEGORIES) {
         QGroupBox* groupBox = new QGroupBox(
-            QString::fromStdString(SystemPermissions::getCategoryName(category))
+            QString::fromStdString(category.displayName)
             );
+        groupBox->setCheckable(true);
+        groupBox->setChecked(false);
         groupBox->setStyleSheet(
             "QGroupBox { "
             "   font-weight: bold; "
             "   border: 2px solid #cccccc; "
             "   border-radius: 5px; "
             "   margin-top: 10px; "
-            "   padding-top: 10px; "
+            "   padding: 15px; "
             "} "
             "QGroupBox::title { "
             "   subcontrol-origin: margin; "
             "   left: 10px; "
-            "   padding: 0 5px 0 5px; "
+            "   padding: 0 5px; "
             "}"
             );
 
+        // Layout para descripción
         QVBoxLayout* groupLayout = new QVBoxLayout();
-        groupLayout->setSpacing(5);
 
-        // Obtener permisos de esta categoría
-        auto perms = SystemPermissions::getPermissionsByCategory(category);
-
-        for (const auto& perm : perms) {
-            QCheckBox* checkbox = new QCheckBox(
-                QString::fromStdString(perm.displayName)
-                );
-            checkbox->setObjectName(QString::fromStdString(perm.id));
-            checkbox->setStyleSheet("QCheckBox { font-weight: normal; padding: 2px; }");
-            permissionCheckboxes[perm.id] = checkbox;
-            groupLayout->addWidget(checkbox);
-        }
+        QLabel* descLabel = new QLabel(QString::fromStdString(category.description));
+        descLabel->setStyleSheet("font-weight: normal; font-style: italic; color: #666;");
+        descLabel->setWordWrap(true);
+        groupLayout->addWidget(descLabel);
 
         groupBox->setLayout(groupLayout);
+
+        // Guardar referencia
+        categoryCheckboxes[category.name] = groupBox;
+
         mainLayout->addWidget(groupBox);
     }
 
@@ -91,6 +93,7 @@ void addRoleWindow::setupPermissionsUI()
     scrollWidget->setLayout(mainLayout);
     scrollArea->setWidget(scrollWidget);
 
+    // Añadir al layout del diálogo
     QVBoxLayout* dialogLayout = qobject_cast<QVBoxLayout*>(this->layout());
     if (dialogLayout) {
         dialogLayout->insertWidget(2, scrollArea);
@@ -103,19 +106,40 @@ void addRoleWindow::setupPermissionsUI()
     }
 }
 
-void addRoleWindow::loadPermissionsFromString(const QString& permissions)
+void addRoleWindow::loadCategoriesFromPermissions(const QString& permissions)
 {
     if (permissions.isEmpty()) return;
 
+    // Convertir permisos a lista
     QStringList permList = permissions.split(',', Qt::SkipEmptyParts);
-
+    std::vector<std::string> perms;
     for (const QString& perm : permList) {
-        QString trimmed = perm.trimmed();
-        std::string permId = trimmed.toStdString();
+        perms.push_back(perm.trimmed().toStdString());
+    }
 
-        auto it = permissionCheckboxes.find(permId);
-        if (it != permissionCheckboxes.end()) {
-            it->second->setChecked(true);
+    // Verificar qué categorías están presentes
+    for (const auto& category : SystemPermissions::ALL_CATEGORIES) {
+        // Parsear permisos de la categoría
+        std::istringstream iss(category.permissions);
+        std::string catPerm;
+        bool hasAllPerms = true;
+
+        while (std::getline(iss, catPerm, ',')) {
+            catPerm.erase(0, catPerm.find_first_not_of(" \t"));
+            catPerm.erase(catPerm.find_last_not_of(" \t") + 1);
+
+            if (std::find(perms.begin(), perms.end(), catPerm) == perms.end()) {
+                hasAllPerms = false;
+                break;
+            }
+        }
+
+        // Si tiene todos los permisos de la categoría, marcarla
+        if (hasAllPerms) {
+            auto it = categoryCheckboxes.find(category.name);
+            if (it != categoryCheckboxes.end()) {
+                it->second->setChecked(true);
+            }
         }
     }
 }
@@ -127,15 +151,24 @@ QString addRoleWindow::getRole() const
 
 QString addRoleWindow::getPermissions() const
 {
-    QStringList selectedPerms;
+    // Recopilar categorías seleccionadas
+    std::vector<std::string> selectedCategories;
 
-    for (const auto& pair : permissionCheckboxes) {
+    for (const auto& pair : categoryCheckboxes) {
         if (pair.second->isChecked()) {
-            selectedPerms.append(QString::fromStdString(pair.first));
+            selectedCategories.push_back(pair.first);
         }
     }
 
-    return selectedPerms.join(",");
+    // Convertir categorías a permisos
+    std::string categoryNames;
+    for (size_t i = 0; i < selectedCategories.size(); i++) {
+        if (i > 0) categoryNames += ",";
+        categoryNames += selectedCategories[i];
+    }
+
+    std::string permissions = SystemPermissions::categoryNamesToPermissions(categoryNames);
+    return QString::fromStdString(permissions);
 }
 
 void addRoleWindow::validateInputs()
@@ -149,16 +182,17 @@ void addRoleWindow::validateInputs()
         ui->roleMessage->setVisible(false);
     }
 
-    bool hasPermissions = false;
-    for (const auto& pair : permissionCheckboxes) {
+    // Validar que al menos una categoría esté seleccionada
+    bool hasCategories = false;
+    for (const auto& pair : categoryCheckboxes) {
         if (pair.second->isChecked()) {
-            hasPermissions = true;
+            hasCategories = true;
             break;
         }
     }
 
-    if (!hasPermissions) {
-        ui->roleDescriptionMessage->setText("Select at least one permission");
+    if (!hasCategories) {
+        ui->roleDescriptionMessage->setText("Select at least one category");
         ui->roleDescriptionMessage->setVisible(true);
         valid = false;
     } else {
