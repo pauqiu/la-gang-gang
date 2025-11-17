@@ -20,13 +20,13 @@ struct NodeInfo {
 
 class NodeManager {
 public:
-    inline static const std::string SSH_USER = "dylan";
-    inline static const std::string SSH_PASSWORD = "05101524";
-    inline static const std::string BASE_PATH = "~/Documents/la-gang-gang/build/Desktop_Qt_6_9_3-Debug/bin";
+    inline static const std::string SSH_USER = "lab-3-5";
+    inline static const std::string SSH_PASSWORD = "Cata2960!";
+    inline static const std::string BASE_PATH = "~/Documents/la-gang-gang/build/bin";
     inline static const std::string AUTH_EXEC = "nodeAuthMain";
     inline static const std::string PROXY_EXEC = "proxyMain";
     inline static const std::string STORAGE_EXEC = "nodeStorageMain";
-    inline static const std::string RECEPTOR_EXEC = "receptorMain";
+    inline static const std::string RECEPTOR_EXEC = "nodeReceptor";
 
     NodeManager() {
         loadEndpoints("endpoints.txt");

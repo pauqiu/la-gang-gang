@@ -69,13 +69,6 @@ int NodeManager::executeSSHCommand(const NodeInfo& node, const std::string& comm
         return -1;
     }
 
-    // Leer salida (opcional, útil para debug)
-    char buffer[256];
-    int nbytes = ssh_channel_read(channel, buffer, sizeof(buffer), 0);
-    if (nbytes > 0) {
-        std::cout << "[SSH Output] " << std::string(buffer, nbytes) << "\n";
-    }
-
     ssh_channel_send_eof(channel);
     ssh_channel_close(channel);
     ssh_channel_free(channel);
@@ -96,6 +89,7 @@ void NodeManager::startNode(const NodeInfo& node) {
 
     if (result == 0) {
         sleep(2);
+        std::cout << "Comando ejecutado" << "...\n";
 
         if (checkNodeStatus(node.ip, node.port)) {
             std::cout << "[OK] Nodo " << node.name << " iniciado correctamente.\n";
