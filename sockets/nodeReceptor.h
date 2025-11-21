@@ -24,7 +24,6 @@ public:
 private:
     Logger logger;
 
-    // TODO(@Paulette): Implement logs for this node.
     void onSensorsReceive(const std::vector<uint8_t>& buf, int client_socket) {
         auto msg = SensorsData::deserialize(buf);
 
@@ -32,14 +31,6 @@ private:
                   << ", Echo: " << msg.echo << ", Volume: " << msg.volume
                   << ", Temperature: " << msg.temperature
                   << "\n";
-
-        std::string output = std::string("[ReceptorNode] Guardando datos - Tilt: ") + std::to_string(msg.tilt) +
-                                            ", Echo: " + std::to_string(msg.echo) +
-                                            ", Volume: " + std::to_string(msg.volume) + 
-                                            ", Temperature: " + std::to_string(msg.temperature) + "\n";
-        
-        // Log goes here
-        
 
         // Prepare data to send
         time_t now = time(nullptr);
@@ -53,6 +44,18 @@ private:
                   + tm_info->tm_min  * 100ULL
                   + tm_info->tm_sec;
 
+        // Logs for received data
+        logger.info("[" + std::to_string(date) + "]" + 
+                    " Received data from tilt sensor: " + 
+                    std::to_string(msg.tilt) + "at " + 
+                    std::to_string(time_val));
+
+        logger.info("[" + std::to_string(date) + "]" + 
+                    " Received data from ultrasonic sensor: " + 
+                    std::to_string(msg.echo) + "at " + 
+                    std::to_string(time_val));
+
+        // TODO(@Paulette): Log data received from the rest of the sensors
         
         sendToSTorage(date, time_val, msg.tilt, TILT_SENSOR);
         sendToSTorage(date, time_val, msg.echo, ULTRASONIC_SENSOR);
