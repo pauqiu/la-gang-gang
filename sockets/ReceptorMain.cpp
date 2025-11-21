@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     
     // TODO: Add the logs file
-    FileSystem receptor("ReceptorLogs.bin");
+    FileSystem receptor("RLogs.bin");
     
     // Crear NodeReceptor en puerto 9090
     nodeReceptor receptorNode(9090, &receptor);
