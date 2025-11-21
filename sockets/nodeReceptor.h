@@ -4,6 +4,7 @@
 #include "node_base.h"
 #include "messages.h"
 #include "filesystem.h"
+#include "logger.h"
 
 #include <string>
 #include <ctime>
@@ -12,7 +13,7 @@ class nodeReceptor:public NodeBase {
 public:
 
     nodeReceptor(int port, FileSystem * fileSystem)
-        : NodeBase(port), fileSystem(fileSystem) {
+        : NodeBase(port), logger(fileSystem, "rLogs.bin") {
 
         dispatcher.registerHandler(MSG_SENSORS_DATA,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
@@ -21,7 +22,7 @@ public:
     }
 
 private:
-    FileSystem * fileSystem;
+    Logger logger;
 
     // TODO(@Paulette): Implement logs for this node.
     void onSensorsReceive(const std::vector<uint8_t>& buf, int client_socket) {
