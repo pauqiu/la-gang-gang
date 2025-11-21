@@ -16,7 +16,8 @@ public:
         : NodeBase(port), logger(fileSystem, "rLogs.bin") {
 
         dispatcher.registerHandler(MSG_SENSORS_DATA,
-                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                   [this](const std::vector<uint8_t>& buf, 
+                                        int client_socket) {
                                        onSensorsReceive(buf, client_socket);
                                    });
     }
@@ -45,15 +46,11 @@ private:
                   + tm_info->tm_sec;
 
         // Logs for received data
-        logger.info("[" + std::to_string(date) + "]" + 
-                    " Received data from tilt sensor: " + 
-                    std::to_string(msg.tilt) + "at " + 
-                    std::to_string(time_val));
+        logger.info("Received data from tilt sensor: " + 
+                    std::to_string(msg.tilt));
 
-        logger.info("[" + std::to_string(date) + "]" + 
-                    " Received data from ultrasonic sensor: " + 
-                    std::to_string(msg.echo) + "at " + 
-                    std::to_string(time_val));
+        logger.info("Received data from ultrasonic sensor: " + 
+                    std::to_string(msg.echo));
 
         // TODO(@Paulette): Log data received from the rest of the sensors
         
@@ -64,7 +61,9 @@ private:
         close(client_socket);
     }
 
-    void sendToSTorage(uint64_t date, uint64_t time, uint16_t value, uint8_t sensor_id) {
+    void sendToSTorage(uint64_t date, uint64_t time, uint16_t value, 
+                        uint8_t sensor_id) {
+        // TODO(@Paulette): Grab this from the endpoints.txt
         int sock = connect_to("10.1.35.15", 5004);
         if (sock < 0) {
             std::cerr << "[ReceptorNode] Error conectando a Storage\n";
@@ -95,8 +94,11 @@ private:
 
         if (!send_message(sock, serialized.data(), serialized.size())) {
             std::cerr << "[ReceptorNode] Error enviando mensaje\n";
+            logger.error("Couldn't send data to Storage.");
             close(sock);
         }
+
+        logger.success("Sent data to Storage succesfully.");
     }
 
     uint8_t alert(uint16_t value, uint8_t sensor) {
