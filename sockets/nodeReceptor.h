@@ -39,7 +39,7 @@ private:
                                             ", Temperature: " + std::to_string(msg.temperature) + "\n";
         
         // Log goes here
-        // newlogEntry(output);
+        
 
         // Prepare data to send
         time_t now = time(nullptr);
@@ -61,14 +61,10 @@ private:
         close(client_socket);
     }
 
-    void newlogEntry(std::string log) {
-        fileSystem->appendToFile("RLogs.bin", log);
-    }
-
     void sendToSTorage(uint64_t date, uint64_t time, uint16_t value, uint8_t sensor_id) {
         int sock = connect_to("10.1.35.15", 5004);
         if (sock < 0) {
-            std::cerr << "[Receptor] Error conectando a Storage\n";
+            std::cerr << "[ReceptorNode] Error conectando a Storage\n";
         }
 
         uint8_t alert_signal = alert(value, sensor_id);
@@ -90,12 +86,12 @@ private:
 
         std::string alert_value = (alert_signal == 1) ? "ALERT" : "NORMAL";
 
-        std::cout << "[Receptor] Enviando: " << date << " " << time
+        std::cout << "[ReceptorNode] Enviando: " << date << " " << time
                     << " | Value: " << value
                     << " | Status: " << alert_value << "\n";
 
         if (!send_message(sock, serialized.data(), serialized.size())) {
-            std::cerr << "[Receptor] Error enviando mensaje\n";
+            std::cerr << "[ReceptorNode] Error enviando mensaje\n";
             close(sock);
         }
     }
