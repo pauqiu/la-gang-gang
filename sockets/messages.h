@@ -31,6 +31,15 @@ enum MessageType : uint8_t {
     MSG_SOUND_SENSOR_DATA = 20,            // Arduino -> Receptor: datos detectados por los sensores
     MSG_HUMIDITY_SENSOR_DATA = 21,            // Arduino -> Receptor: datos detectados por los sensores
     MSG_SENSORS_DATA = 22,
+    MSG_LOG_REQUEST = 23,
+    MSG_LOG_RESPONSE = 24,
+};
+
+// Tipo de nodo para consulta de logs
+enum NodeType : uint8_t {
+    NODE_PROXY = 1,
+    NODE_AUTH = 2,
+    NODE_STORAGE = 3
 };
 
 // Id de los sensores
@@ -962,6 +971,95 @@ struct SensorsData {
             // msg.temperature = (static_cast<uint16_t>(buffer[6]) << 8)
             //                   | static_cast<uint16_t>(buffer[7]);
 
+        }
+        return msg;
+    }
+};
+
+// LogRequest - Cliente solicita logs de un nodo en rango de fechas (ID 23)
+struct LogRequest {
+    uint8_t message_id = MSG_LOG_REQUEST;
+    uint8_t token[32];
+    uint8_t node_type;
+    uint64_t startDate; // YYYYMMDD
+    uint64_t endDate;   // YYYYMMDD
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.insert(result.end(), token, token + 32);
+        result.push_back(node_type);
+        
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((startDate >> (i * 8)) & 0xFF);
+        }
+        for (int i = 7; i >= 0; i--) {
+            result.push_back((endDate >> (i * 8)) & 0xFF);
+        }
+        return result;
+    }
+
+    static LogRequest deserialize(const std::vector<uint8_t>& buffer) {
+        LogRequest msg;
+        size_t idx = 0;
+        msg.message_id = buffer[idx++];
+        std::memcpy(msg.token, &buffer[idx], 32);
+        idx += 32;
+        msg.node_type = buffer[idx++];
+        
+        msg.startDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.startDate = (msg.startDate << 8) | buffer[idx++];
+        }
+        msg.endDate = 0;
+        for (int i = 0; i < 8; i++) {
+            msg.endDate = (msg.endDate << 8) | buffer[idx++];
+        }
+        return msg;
+    }
+};
+
+// LogResponse - Respuesta con logs (ID 24)
+struct LogResponse {
+    uint8_t message_id = MSG_LOG_RESPONSE;
+    uint8_t node_type;
+    uint16_t logCount;
+    std::vector<std::string> logs;
+
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> result;
+        result.push_back(message_id);
+        result.push_back(node_type);
+        
+        result.push_back((logCount >> 8) & 0xFF);
+        result.push_back(logCount & 0xFF);
+        
+        for (const auto& log : logs) {
+            uint16_t len = log.length();
+            result.push_back((len >> 8) & 0xFF);
+            result.push_back(len & 0xFF);
+            result.insert(result.end(), log.begin(), log.end());
+        }
+        return result;
+    }
+
+    static LogResponse deserialize(const std::vector<uint8_t>& buffer) {
+        LogResponse msg;
+        size_t idx = 0;
+        msg.message_id = buffer[idx++];
+        msg.node_type = buffer[idx++];
+        
+        msg.logCount = (buffer[idx] << 8) | buffer[idx + 1];
+        idx += 2;
+        
+        for (int i = 0; i < msg.logCount; i++) {
+            if (idx + 2 > buffer.size()) break;
+            uint16_t len = (buffer[idx] << 8) | buffer[idx + 1];
+            idx += 2;
+            if (idx + len > buffer.size()) break;
+            std::string log((char*)&buffer[idx], len);
+            msg.logs.push_back(log);
+            idx += len;
         }
         return msg;
     }

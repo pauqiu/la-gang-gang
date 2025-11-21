@@ -122,6 +122,31 @@ public:
         return entries;
     }
 
+    // Solicitar logs de un nodo específico en un rango de fechas
+    std::vector<std::string> requestNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t endDate) {
+        if (!hasValidToken()) {
+            std::cerr << "[Client] No hay token válido. Autentíquese primero.\n";
+            return {};
+        }
+
+        int sock = connectToProxy();
+        if (sock < 0) return {};
+
+        if (!sendLogRequest(sock, nodeType, startDate, endDate)) {
+            close(sock);
+            return {};
+        }
+
+        auto response = receiveResponse(sock);
+        std::vector<std::string> logs;
+        if (!response.empty()) {
+            logs = processLogResponse(response);
+        }
+
+        close(sock);
+        return logs;
+    }
+
 private:
     uint8_t sessionToken[32] = {0};
     uint8_t currentRole = 0;
@@ -391,5 +416,43 @@ private:
         std::cout << std::string(80, '-') << "\n\n";
         
         return entries;
+    }
+
+    bool sendLogRequest(int sock, uint8_t nodeType, uint64_t startDate, uint64_t endDate) {
+        LogRequest msg;
+        msg.message_id = MSG_LOG_REQUEST;
+        std::memcpy(msg.token, sessionToken, 32);
+        msg.node_type = nodeType;
+        msg.startDate = startDate;
+        msg.endDate = endDate;
+
+        auto data = msg.serialize();
+        if (!send_message(sock, data.data(), data.size())) {
+            std::cerr << "[Client] Error al enviar solicitud de logs.\n";
+            return false;
+        }
+
+        std::cout << "[Client] Solicitud de logs enviada (node=" << (int)nodeType 
+                  << ", startDate=" << startDate << ", endDate=" << endDate << ")...\n";
+        return true;
+    }
+
+    std::vector<std::string> processLogResponse(const std::vector<uint8_t>& response) {
+        if (response[0] != MSG_LOG_RESPONSE) {
+             std::cerr << "[Client] Respuesta inesperada (ID=" << (int)response[0] << ")\n";
+             return {};
+        }
+
+        auto msg = LogResponse::deserialize(response);
+        
+        std::cout << "\nLOGS RECIBIDOS (" << msg.logCount << " entradas):\n";
+        std::cout << std::string(80, '=') << "\n";
+        
+        for (const auto& log : msg.logs) {
+            std::cout << log; // log line usually has \n
+        }
+        std::cout << std::string(80, '=') << "\n\n";
+        
+        return msg.logs;
     }
 };
