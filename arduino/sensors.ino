@@ -18,7 +18,7 @@ boolean tiltState = 0;
 // Pines del sensor
 const int triggerPin = 14; // Trigger pin
 const int echoPin = 27;    // Echo pin
-const int tiltPin = 12;    // Tilt pin
+const int tiltPin = 13;    // Tilt pin
 
 const uint16_t SENSOR_ID = 22;
 const int ARRAY_SIZE =
