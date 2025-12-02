@@ -5,7 +5,7 @@ const char *wifi_ssid = "Lab-3-5";       // Red WiFi
 const char *wifi_password = "Cata2960!"; // Password
 
 // Servidor receptor
-const char *host = "10.1.137.72"; // Example: "10.1.35.12"
+const char *host = "10.1.35.14"; // Example: "10.1.35.12"
 const uint16_t port = 9090; // PORT INTERNET DE SERVIDOR RECEPTOR
 
 // Pines del sensor ultrasónico
@@ -15,20 +15,24 @@ const int tiltPin = 13;    // Tilt pin
 
 // Pines del micrófono
 const int analogPin = 34;  // ADC0
-const int digitalPin = 12; // Pin digital de sonido
+const int digitalPin = 12; // Pin digital para detección adicional
+
+// Pin Luz LDR
+const int ldrPin = 35;
 
 // Variables de sensores
 uint16_t cm = 0; // Distancia en cm
 boolean tiltState = 0; // Estado del tilt
 unsigned int soundLevel = 0; // Nivel de sonido
 int soundDetected = 0; // Detección digital de sonido
+int lightLevel = 0;
 
 // Configuración micrófono
 unsigned long sampleWindow = 50; // ventana de muestreo en ms
 unsigned int sample;
 
 const uint16_t SENSOR_ID = 22;
-const int ARRAY_SIZE = 4;
+const int ARRAY_SIZE = 5; // ID, Distancia, tilt, sonido, luz
 
 WiFiClient client;
 
@@ -97,6 +101,10 @@ uint16_t readDigitalSound() {
   return digitalRead(digitalPin);
 }
 
+uint16_t readLightLevel() {
+  int rawValue = analogRead(ldrPin);
+}
+
 void setup() {
   Serial.begin(19200);
   
@@ -113,6 +121,7 @@ void loop() {
   uint16_t tiltValue = readTilt();
   soundLevel = readSoundLevel();
   soundDetected = readDigitalSound();
+  lightLevel = readLightLevel();
 
   // Mostrar lecturas en monitor serie
   Serial.println("=== LECTURAS DE SENSORES ===");
@@ -126,12 +135,8 @@ void loop() {
   Serial.print("Nivel de sonido (Analog): ");
   Serial.println(soundLevel);
 
-  // Detección de sonido fuerte
-  if (soundDetected == HIGH || soundLevel > 50) { // umbral ajustable
-    Serial.println("*** SONIDO FUERTE DETECTADO ***");
-  } else {
-    Serial.println("Nivel de sonido bajo");
-  }
+  Serial.print("Luz (LDR): ");
+  Serial.println(lightLevel);
 
   Serial.println("=============================");
 
@@ -141,7 +146,8 @@ void loop() {
     dataMessage[0] = SENSOR_ID;
     dataMessage[1] = cm;
     dataMessage[2] = tiltValue;
-    dataMessage[3] = soundLevel; // Nivel de sonido analógico
+    dataMessage[3] = soundLevel; // Enviar nivel de sonido analógico
+    dataMessage[4] = lightLevel;
     
     size_t bytesEnviados = client.write((const uint8_t *)dataMessage,
                                         ARRAY_SIZE * sizeof(uint16_t));
@@ -153,5 +159,5 @@ void loop() {
     Serial.println("No se pudo conectar al servidor");
   }
 
-  delay(1000); // Esperar 15 segundos
+  delay(15000); // Esperar 15 segundos
 }
