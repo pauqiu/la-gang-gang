@@ -18,7 +18,7 @@ const int analogPin = 34;  // ADC0
 const int digitalPin = 12; // Pin digital para detección adicional
 
 // Pin Luz LDR
-const int ldrPin = 35;
+const int ldrPin = 4;
 
 // Variables de sensores
 uint16_t cm = 0; // Distancia en cm
@@ -32,7 +32,7 @@ unsigned long sampleWindow = 50; // ventana de muestreo en ms
 unsigned int sample;
 
 const uint16_t SENSOR_ID = 22;
-const int ARRAY_SIZE = 5; // ID, Distancia, tilt, sonido, luz
+const int ARRAY_SIZE = 5; //5; // ID, Distancia, tilt, sonido, luz
 
 WiFiClient client;
 
@@ -103,6 +103,8 @@ uint16_t readDigitalSound() {
 
 uint16_t readLightLevel() {
   int rawValue = analogRead(ldrPin);
+  Serial.println(rawValue);
+  return rawValue;
 }
 
 void setup() {
@@ -159,5 +161,5 @@ void loop() {
     Serial.println("No se pudo conectar al servidor");
   }
 
-  delay(15000); // Esperar 15 segundos
+  delay(1000); // Esperar 15 segundos
 }
