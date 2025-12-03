@@ -13,7 +13,10 @@
 
 class NodeProxy : public NodeBase {
 public:
-    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "pLogs.bin"), filesystem(fs) {
+    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "pLogs.bin") {
+        // Configurar soporte de logs usando método de clase base
+        setupLogSupport(fs, "pLogs.bin", NODE_PROXY);
+        
         dispatcher.registerHandler(MSG_TOKEN_REGISTER, 
             [this](const std::vector<uint8_t>& buf, int client_socket) { 
                 onTokenRegister(buf, client_socket); 
@@ -42,7 +45,6 @@ public:
 
 private:
     Logger logger;
-    FileSystem* filesystem;
     
     // TODO: Integrar con filesystem para persistir tokens
     // Los tokens deben guardarse en archivo y leerse desde ahí
@@ -321,12 +323,11 @@ private:
 
     // Handler para solicitud de logs
     void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
-        // 1. Deserializar mensaje del cliente
         auto clientMsg = LogRequest::deserialize(buf);
         
         logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
         
-        // 2. Validar token
+        // Validar token
         std::string username;
         if (!validateToken(clientMsg.token, username)) {
             logger.warning("Token inválido, rechazando solicitud de logs");
@@ -337,68 +338,17 @@ private:
         
         logger.info("Token válido para usuario: " + username);
         
-        // 3. Si es para este nodo (PROXY)
+        // Si es para este nodo (PROXY), usar métodos de clase base
         if (clientMsg.node_type == NODE_PROXY) {
             std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
-            
-            LogResponse response;
-            response.message_id = MSG_LOG_RESPONSE;
-            response.node_type = NODE_PROXY;
-            response.logCount = logs.size();
-            response.logs = logs;
-            
-            auto data = response.serialize();
-            send_message(client_socket, data.data(), data.size());
+            sendLogResponse(client_socket, NODE_PROXY, logs);
             logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
         } else {
-            // TODO: Forward to other nodes
+            // TODO: Forward to other nodes (Auth, Storage)
             logger.warning("Solicitud de logs para otro nodo no implementada aún");
-            // Send empty response
-            LogResponse response;
-            response.message_id = MSG_LOG_RESPONSE;
-            response.node_type = clientMsg.node_type;
-            response.logCount = 0;
-            auto data = response.serialize();
-            send_message(client_socket, data.data(), data.size());
+            sendLogResponse(client_socket, clientMsg.node_type, {});
         }
         
         close(client_socket);
-    }
-
-    std::vector<std::string> getLogsInRange(uint64_t startDate, uint64_t endDate) {
-        std::vector<std::string> result;
-        
-        // Leer todo el archivo de logs
-        std::vector<char> content = filesystem->readFile("pLogs.bin");
-        if (content.empty()) return result;
-        
-        std::string fileContent(content.begin(), content.end());
-        std::istringstream iss(fileContent);
-        std::string line;
-        
-        while (std::getline(iss, line)) {
-            if (line.empty()) continue;
-            // Parse date: YYYY-MM-DD
-            if (line.length() < 10) continue;
-            
-            // Check format YYYY-MM-DD
-            if (line[4] != '-' || line[7] != '-') continue;
-            
-            try {
-                std::string dateStr = line.substr(0, 10); // "2025-09-25"
-                dateStr.erase(std::remove(dateStr.begin(), dateStr.end(), '-'), dateStr.end()); // "20250925"
-                
-                uint64_t date = std::stoull(dateStr);
-                
-                if (date >= startDate && date <= endDate) {
-                    result.push_back(line);
-                }
-            } catch (...) {
-                // Ignore lines that don't start with valid date
-                continue;
-            }
-        }
-        
-        return result;
     }
 };

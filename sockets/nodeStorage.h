@@ -12,6 +12,8 @@ class NodeStorage : public NodeBase {
 public:
     NodeStorage(int port, FileSystem* fileSystemInstance)
         : NodeBase(port), filesystem(fileSystemInstance), logger(fileSystemInstance, "sLogs.bin") {
+        // Configurar soporte de logs usando método de clase base
+        setupLogSupport(fileSystemInstance, "sLogs.bin", NODE_STORAGE);
 
         // Registrar handlers para cada tipo de mensaje
         dispatcher.registerHandler(MSG_STORAGE_SAVE,
@@ -32,6 +34,11 @@ public:
         dispatcher.registerHandler(MSG_DATA_REQUEST,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onDataRequest(buf, client_socket);
+                                   });
+        
+        dispatcher.registerHandler(MSG_LOG_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onLogRequest(buf, client_socket);
                                    });
     }
 
@@ -473,5 +480,24 @@ private:
         send_message(client_socket, data.data(), data.size());
 
         std::cout << "[StorageNode] StorageSyncError enviado (error=" << errorCode << ")\n";
+    }
+    
+    // Handler para solicitud de logs
+    void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto clientMsg = LogRequest::deserialize(buf);
+        
+        logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
+        
+        // Storage no valida tokens, procesa directamente
+        if (clientMsg.node_type == NODE_STORAGE) {
+            std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
+            sendLogResponse(client_socket, NODE_STORAGE, logs);
+            logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
+        } else {
+            logger.warning("Solicitud de logs para otro nodo recibida en Storage");
+            sendLogResponse(client_socket, clientMsg.node_type, {});
+        }
+        
+        close(client_socket);
     }
 };

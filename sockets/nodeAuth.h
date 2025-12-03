@@ -12,9 +12,17 @@ class NodeAuth : public NodeBase {
 public:
     NodeAuth(int port, Security* securityInstance, FileSystem* fs)
         : NodeBase(port), security(securityInstance), logger(fs, "aLogs.bin") {
+        // Configurar soporte de logs usando método de clase base
+        setupLogSupport(fs, "aLogs.bin", NODE_AUTH);
+        
         dispatcher.registerHandler(MSG_AUTHENTICATION,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onAuthentication(buf, client_socket);
+                                   });
+        
+        dispatcher.registerHandler(MSG_LOG_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onLogRequest(buf, client_socket);
                                    });
     }
 
@@ -123,5 +131,24 @@ private:
         for (int i = 0; i < 32; i++) {
             token[i] = static_cast<uint8_t>(dis(gen));
         }
+    }
+    
+    // Handler para solicitud de logs
+    void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto clientMsg = LogRequest::deserialize(buf);
+        
+        logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
+        
+        // Auth no valida tokens (es el que los genera), procesa directamente
+        if (clientMsg.node_type == NODE_AUTH) {
+            std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
+            sendLogResponse(client_socket, NODE_AUTH, logs);
+            logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
+        } else {
+            logger.warning("Solicitud de logs para otro nodo recibida en Auth");
+            sendLogResponse(client_socket, clientMsg.node_type, {});
+        }
+        
+        close(client_socket);
     }
 };

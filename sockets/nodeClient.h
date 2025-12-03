@@ -129,7 +129,8 @@ public:
             return {};
         }
 
-        int sock = connectToProxy();
+        // Conectar al nodo correspondiente según el tipo
+        int sock = connectToNodeByType(nodeType);
         if (sock < 0) return {};
 
         if (!sendLogRequest(sock, nodeType, startDate, endDate)) {
@@ -167,6 +168,29 @@ private:
             std::cerr << "[Client] Error al conectar con Proxy.\n";
         }
         return sock;
+    }
+    
+    int connectToStorage() {
+        int sock = connect_to(getStorageIp(), getStoragePort());
+        if (sock < 0) {
+            std::cerr << "[Client] Error al conectar con Storage.\n";
+        }
+        return sock;
+    }
+    
+    // Conectar al nodo correspondiente según el tipo
+    int connectToNodeByType(uint8_t nodeType) {
+        switch (nodeType) {
+            case NODE_PROXY:
+                return connectToProxy();
+            case NODE_AUTH:
+                return connectToAuthServer();
+            case NODE_STORAGE:
+                return connectToStorage();
+            default:
+                std::cerr << "[Client] Tipo de nodo desconocido: " << (int)nodeType << "\n";
+                return -1;
+        }
     }
 
     bool sendAuthRequest(int sock, const std::string& user, const std::string& pass, int tries) {
