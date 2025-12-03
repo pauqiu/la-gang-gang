@@ -7,6 +7,7 @@
 #include "../sockets/endpoints.h"
 
 #include <sstream>
+#include <unistd.h>
 #include <QPushButton>
 #include <QInputDialog>
 #include <QDebug>
@@ -66,6 +67,8 @@ menuWindow::~menuWindow()
 void menuWindow::initialize() {
     loadAvailableSensors();
     populateSensorsDropdown();
+    populateNodeSelector();
+    ui->logFilterErrorMsg->setVisible(false);
 }
 
 void menuWindow::setLogInWindow(MainWindow *newLogIn)
@@ -544,4 +547,169 @@ void menuWindow::loadSensorData(const QString& sensorId, uint64_t startDate, uin
     }
 
     qDebug() << "Tabla cargada con" << dataResponse.entriesCount << "registros";
+}
+
+void menuWindow::populateNodeSelector() {
+    ui->nodeSelector->clear();
+    ui->nodeSelector->addItem("Proxy", NODE_PROXY);
+    ui->nodeSelector->addItem("Auth", NODE_AUTH);
+    ui->nodeSelector->addItem("Storage", NODE_STORAGE);
+}
+
+void menuWindow::on_logFilterButton_clicked() {
+    ui->logFilterErrorMsg->setVisible(false);
+    
+    if (ui->nodeSelector->currentIndex() < 0) {
+        ui->logFilterErrorMsg->setText("Select a node");
+        ui->logFilterErrorMsg->setVisible(true);
+        return;
+    }
+    
+    QDate startDate = ui->logStartDateInput->date();
+    QDate endDate = ui->logEndDateInput->date();
+    
+    if (startDate > endDate) {
+        ui->logFilterErrorMsg->setText("Invalid date range");
+        ui->logFilterErrorMsg->setVisible(true);
+        return;
+    }
+    
+    uint64_t startDateInt = startDate.toString("yyyyMMdd").toULongLong();
+    uint64_t endDateInt = endDate.toString("yyyyMMdd").toULongLong();
+    
+    uint8_t nodeType = static_cast<uint8_t>(ui->nodeSelector->currentData().toInt());
+    
+    loadNodeLogs(nodeType, startDateInt, endDateInt);
+}
+
+void menuWindow::loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t endDate) {
+    // Determinar IP y puerto según el tipo de nodo
+    std::string nodeIp;
+    int nodePort;
+    
+    switch (nodeType) {
+        case NODE_PROXY:
+            nodeIp = getProxyIp();
+            nodePort = getProxyPort();
+            break;
+        case NODE_AUTH:
+            nodeIp = getAuthIp();
+            nodePort = getAuthPort();
+            break;
+        case NODE_STORAGE:
+            nodeIp = getStorageIp();
+            nodePort = getStoragePort();
+            break;
+        default:
+            qDebug() << "Tipo de nodo desconocido";
+            return;
+    }
+    
+    int sock = connect_to(nodeIp, nodePort);
+    if (sock < 0) {
+        qDebug() << "Error conectando con nodo";
+        ui->logFilterErrorMsg->setText("Connection error");
+        ui->logFilterErrorMsg->setVisible(true);
+        return;
+    }
+    
+    // Crear y enviar LogRequest
+    LogRequest request;
+    request.message_id = MSG_LOG_REQUEST;
+    request.node_type = nodeType;
+    std::memcpy(request.token, sessionToken, 32);
+    request.startDate = startDate;
+    request.endDate = endDate;
+    
+    auto data = request.serialize();
+    if (!send_message(sock, data.data(), data.size())) {
+        qDebug() << "Error enviando petición de logs";
+        ui->logFilterErrorMsg->setText("Send error");
+        ui->logFilterErrorMsg->setVisible(true);
+        ::close(sock);
+        return;
+    }
+    
+    // Recibir respuesta
+    std::vector<uint8_t> response(65536);  // Buffer grande para logs
+    ssize_t bytes = recv_message(sock, response.data(), response.size());
+    ::close(sock);
+    
+    if (bytes <= 0) {
+        qDebug() << "Error recibiendo respuesta de logs";
+        ui->logFilterErrorMsg->setText("No response");
+        ui->logFilterErrorMsg->setVisible(true);
+        return;
+    }
+    
+    response.resize(bytes);
+    auto logResponse = LogResponse::deserialize(response);
+    
+    // Actualizar título con nombre del nodo
+    QString nodeName = ui->nodeSelector->currentText();
+    ui->logsTitle->setText(QString("%1 Logs (%2 entries)").arg(nodeName).arg(logResponse.logCount));
+    
+    // Poblar tabla
+    ui->logsTable->clearContents();
+    ui->logsTable->setRowCount(logResponse.logCount);
+    ui->logsTable->setColumnCount(4);
+    
+    QStringList headers = {"Date", "Time", "Level", "Message"};
+    ui->logsTable->setHorizontalHeaderLabels(headers);
+    
+    // Ajustar anchos de columna
+    ui->logsTable->setColumnWidth(0, 100);
+    ui->logsTable->setColumnWidth(1, 80);
+    ui->logsTable->setColumnWidth(2, 80);
+    ui->logsTable->setColumnWidth(3, 400);
+    
+    for (size_t i = 0; i < logResponse.logs.size(); i++) {
+        const std::string& logLine = logResponse.logs[i];
+        
+        // Parsear línea de log: "YYYY-MM-DD HH:MM:SS [LEVEL] Message"
+        QString line = QString::fromStdString(logLine);
+        
+        QString date = "", time = "", level = "", message = "";
+        
+        // Extraer fecha (primeros 10 caracteres)
+        if (line.length() >= 10) {
+            date = line.mid(0, 10);
+        }
+        
+        // Extraer hora (caracteres 11-18)
+        if (line.length() >= 19) {
+            time = line.mid(11, 8);
+        }
+        
+        // Buscar nivel entre corchetes
+        int bracketStart = line.indexOf('[');
+        int bracketEnd = line.indexOf(']');
+        if (bracketStart >= 0 && bracketEnd > bracketStart) {
+            level = line.mid(bracketStart + 1, bracketEnd - bracketStart - 1);
+            message = line.mid(bracketEnd + 2).trimmed();  // +2 para saltar "] "
+        } else {
+            // Si no hay corchetes, todo lo demás es mensaje
+            message = line.mid(20).trimmed();
+        }
+        
+        ui->logsTable->setItem(i, 0, new QTableWidgetItem(date));
+        ui->logsTable->setItem(i, 1, new QTableWidgetItem(time));
+        
+        QTableWidgetItem* levelItem = new QTableWidgetItem(level);
+        // Colorear según nivel
+        if (level == "ERROR") {
+            levelItem->setBackground(QColor(255, 200, 200));  // Rojo claro
+        } else if (level == "WARNING" || level == "WARN") {
+            levelItem->setBackground(QColor(255, 255, 200));  // Amarillo claro
+        } else if (level == "SUCCESS") {
+            levelItem->setBackground(QColor(200, 255, 200));  // Verde claro
+        } else {
+            levelItem->setBackground(QColor(220, 220, 220));  // Gris claro para INFO
+        }
+        ui->logsTable->setItem(i, 2, levelItem);
+        
+        ui->logsTable->setItem(i, 3, new QTableWidgetItem(message));
+    }
+    
+    qDebug() << "Tabla de logs cargada con" << logResponse.logCount << "registros";
 }

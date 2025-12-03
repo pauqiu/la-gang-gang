@@ -44,10 +44,14 @@ private slots:
     void on_addRoleButton_clicked();
 
     void on_filterButton_clicked();
+    void on_logFilterButton_clicked();
 
     void loadAvailableSensors();
     void loadSensorData(const QString& sensorId, uint64_t startDate, uint64_t endDate);
     void populateSensorsDropdown();
+    
+    void populateNodeSelector();
+    void loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t endDate);
     //QString roleNumberToString(int role);
 
     void loadUserPermissions();
