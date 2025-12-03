@@ -204,6 +204,19 @@ set_target_properties(test_health_check PROPERTIES
 )
 
 # =====================================
+# Test de round-robin
+# =====================================
+add_executable(test_round_robin
+    sockets/test_round_robin.cpp
+    sockets/endpoints.cpp
+)
+target_include_directories(test_round_robin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_round_robin PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(test_round_robin PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
 # Ejecutable nodo Proxy independiente
 # =====================================
 add_executable(proxyMain

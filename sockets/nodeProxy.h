@@ -4,6 +4,7 @@
 #include "filesystem.h"
 #include "../include/logger.h"
 #include "endpoints.h"
+#include "health_checker.h"
 #include <iostream>
 #include <map>
 #include <cstring>
@@ -11,11 +12,24 @@
 #include <sstream>
 #include <algorithm>
 
+struct StorageEndpoint {
+    std::string ip;
+    int port;
+};
+
 class NodeProxy : public NodeBase {
 public:
-    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "pLogs.bin") {
+    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "proxy_disk.bin"), roundRobinIndex(0) {
+        // Configurar storages disponibles
+        storages.push_back({getStorageIp(), getStoragePort()});
+        if (hasStorage2()) {
+            storages.push_back({getStorage2Ip(), getStorage2Port()});
+            logger.info("Round-Robin configurado con 2 storages");
+        } else {
+            logger.info("Un solo storage configurado");
+        }
         // Configurar soporte de logs usando método de clase base
-        setupLogSupport(fs, "pLogs.bin", NODE_PROXY);
+        setupLogSupport(fs, "proxy_disk.bin", NODE_PROXY);
         
         dispatcher.registerHandler(MSG_TOKEN_REGISTER, 
             [this](const std::vector<uint8_t>& buf, int client_socket) { 
@@ -45,6 +59,30 @@ public:
 
 private:
     Logger logger;
+    std::vector<StorageEndpoint> storages;
+    size_t roundRobinIndex;
+    
+    // Selecciona el siguiente storage activo (round-robin)
+    StorageEndpoint* selectActiveStorage() {
+        if (storages.empty()) return nullptr;
+        
+        size_t attempts = 0;
+        while (attempts < storages.size()) {
+            size_t idx = roundRobinIndex % storages.size();
+            roundRobinIndex++;
+            
+            auto& storage = storages[idx];
+            if (HealthChecker::isNodeAlive(storage.ip, storage.port)) {
+                logger.info("Storage seleccionado: " + storage.ip + ":" + std::to_string(storage.port));
+                return &storage;
+            }
+            logger.warning("Storage " + storage.ip + ":" + std::to_string(storage.port) + " no disponible");
+            attempts++;
+        }
+        
+        logger.error("Ningún storage disponible");
+        return nullptr;
+    }
     
     // TODO: Integrar con filesystem para persistir tokens
     // Los tokens deben guardarse en archivo y leerse desde ahí
@@ -246,14 +284,17 @@ private:
     
     // Consultar storage y obtener respuesta
     std::vector<uint8_t> queryStorage(const DataRequestWithoutToken& request) {
-        logger.info("Enviando DataRequestWithoutToken al storage (sin token)");
+        StorageEndpoint* storage = selectActiveStorage();
+        if (!storage) {
+            logger.error("No hay storage disponible para la consulta");
+            return {};
+        }
         
-        // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to(getStorageIp(), getStoragePort());
+        int storageSock = connect_to(storage->ip, storage->port);
         
         if (storageSock < 0) {
-            logger.error("Error conectando con Storage");
+            logger.error("Error conectando con Storage " + storage->ip);
             return {};
         }
         
@@ -288,14 +329,17 @@ private:
     
     // Consultar storage para obtener lista de sensores
     std::vector<uint8_t> queryStorageForSensorList(const ListSensorRequestWithoutToken& request) {
-        logger.info("Enviando ListSensorRequestWithoutToken al storage (sin token)");
+        StorageEndpoint* storage = selectActiveStorage();
+        if (!storage) {
+            logger.error("No hay storage disponible para lista de sensores");
+            return {};
+        }
         
-        // Serializar y enviar al storage
         auto requestData = request.serialize();
-        int storageSock = connect_to(getStorageIp(), getStoragePort());
+        int storageSock = connect_to(storage->ip, storage->port);
         
         if (storageSock < 0) {
-            logger.error("Error conectando con Storage para lista de sensores");
+            logger.error("Error conectando con Storage " + storage->ip);
             return {};
         }
         
