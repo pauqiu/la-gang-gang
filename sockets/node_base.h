@@ -11,7 +11,16 @@
 
 class NodeBase {
 public:
-    NodeBase(int port) : port(port), running(false), nodeFilesystem(nullptr), nodeType(0) {}
+    NodeBase(int port) : port(port), running(false), nodeFilesystem(nullptr), nodeType(0) {
+        dispatcher.registerHandler(MSG_HEALTH_CHECK,
+            [this](const std::vector<uint8_t>&, int client_socket) {
+                HealthResponse resp;
+                resp.node_type = nodeType;
+                auto data = resp.serialize();
+                send_message(client_socket, data.data(), data.size());
+                close(client_socket);
+            });
+    }
 
     void start() {
         running = true;

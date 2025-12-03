@@ -33,6 +33,8 @@ enum MessageType : uint8_t {
     MSG_SENSORS_DATA = 22,
     MSG_LOG_REQUEST = 23,
     MSG_LOG_RESPONSE = 24,
+    MSG_HEALTH_CHECK = 25,
+    MSG_HEALTH_RESPONSE = 26,
 };
 
 // Tipo de nodo para consulta de logs
@@ -1064,3 +1066,47 @@ struct LogResponse {
         return msg;
     }
 };
+
+// HealthCheck - Ping (ID 25)
+#pragma pack(push, 1)
+struct HealthCheck {
+    uint8_t message_id = MSG_HEALTH_CHECK;
+    uint8_t node_type = 0;
+
+    std::vector<uint8_t> serialize() const {
+        return {message_id, node_type};
+    }
+
+    static HealthCheck deserialize(const std::vector<uint8_t>& buffer) {
+        HealthCheck msg;
+        if (buffer.size() >= 2) {
+            msg.message_id = buffer[0];
+            msg.node_type = buffer[1];
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)
+
+// HealthResponse - Pong (ID 26)
+#pragma pack(push, 1)
+struct HealthResponse {
+    uint8_t message_id = MSG_HEALTH_RESPONSE;
+    uint8_t node_type = 0;
+    uint8_t status = 0;  // 0 = OK
+
+    std::vector<uint8_t> serialize() const {
+        return {message_id, node_type, status};
+    }
+
+    static HealthResponse deserialize(const std::vector<uint8_t>& buffer) {
+        HealthResponse msg;
+        if (buffer.size() >= 3) {
+            msg.message_id = buffer[0];
+            msg.node_type = buffer[1];
+            msg.status = buffer[2];
+        }
+        return msg;
+    }
+};
+#pragma pack(pop)

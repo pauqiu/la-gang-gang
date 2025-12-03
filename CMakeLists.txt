@@ -191,6 +191,19 @@ set_target_properties(test_log_request PROPERTIES
 )
 
 # =====================================
+# Test de health check
+# =====================================
+add_executable(test_health_check
+    sockets/test_health_check.cpp
+    sockets/endpoints.cpp
+)
+target_include_directories(test_health_check PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(test_health_check PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+set_target_properties(test_health_check PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# =====================================
 # Ejecutable nodo Proxy independiente
 # =====================================
 add_executable(proxyMain
