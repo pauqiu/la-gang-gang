@@ -226,3 +226,12 @@ set_target_properties(nodeAuthMain PROPERTIES
 set_target_properties(filesystem-tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# =====================================
+# Copiar endpoints.txt al directorio bin
+# =====================================
+configure_file(
+    ${CMAKE_SOURCE_DIR}/endpoints.txt
+    ${CMAKE_BINARY_DIR}/bin/endpoints.txt
+    COPYONLY
+)
