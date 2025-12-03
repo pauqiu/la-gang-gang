@@ -1,13 +1,17 @@
 #pragma once
 #include "communication.h"
 #include "message_dispatcher.h"
+#include "messages.h"
+#include "filesystem.h"
 #include <thread>
 #include <atomic>
 #include <vector>
+#include <sstream>
+#include <algorithm>
 
 class NodeBase {
 public:
-    NodeBase(int port) : port(port), running(false) {}
+    NodeBase(int port) : port(port), running(false), nodeFilesystem(nullptr), nodeType(0) {}
 
     void start() {
         running = true;
@@ -34,6 +38,67 @@ protected:
     int port;
     std::atomic<bool> running;
     std::thread serverThread;
+    
+    // Para funcionalidad de logs
+    FileSystem* nodeFilesystem;
+    std::string logFileName;
+    uint8_t nodeType;
+    
+    // Configurar el nodo para soporte de logs
+    void setupLogSupport(FileSystem* fs, const std::string& logFile, uint8_t type) {
+        nodeFilesystem = fs;
+        logFileName = logFile;
+        nodeType = type;
+    }
+    
+    // Obtener logs en un rango de fechas desde el archivo de logs del nodo
+    std::vector<std::string> getLogsInRange(uint64_t startDate, uint64_t endDate) {
+        std::vector<std::string> result;
+        
+        if (!nodeFilesystem || logFileName.empty()) return result;
+        
+        std::vector<char> content = nodeFilesystem->readFile(logFileName);
+        if (content.empty()) return result;
+        
+        std::string fileContent(content.begin(), content.end());
+        std::istringstream iss(fileContent);
+        std::string line;
+        
+        while (std::getline(iss, line)) {
+            if (line.empty()) continue;
+            if (line.length() < 10) continue;
+            
+            // Check format YYYY-MM-DD
+            if (line[4] != '-' || line[7] != '-') continue;
+            
+            try {
+                std::string dateStr = line.substr(0, 10);
+                dateStr.erase(std::remove(dateStr.begin(), dateStr.end(), '-'), dateStr.end());
+                
+                uint64_t date = std::stoull(dateStr);
+                
+                if (date >= startDate && date <= endDate) {
+                    result.push_back(line);
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+        
+        return result;
+    }
+    
+    // Enviar respuesta de logs al cliente
+    void sendLogResponse(int client_socket, uint8_t type, const std::vector<std::string>& logs) {
+        LogResponse response;
+        response.message_id = MSG_LOG_RESPONSE;
+        response.node_type = type;
+        response.logCount = logs.size();
+        response.logs = logs;
+        
+        auto data = response.serialize();
+        send_message(client_socket, data.data(), data.size());
+    }
 
 public:
 
