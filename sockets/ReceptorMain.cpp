@@ -6,7 +6,6 @@ int main(int argc, char *argv[]) {
     // Inicializar QCoreApplication
     QCoreApplication app(argc, argv);
     
-    // TODO: Add the logs file
     FileSystem receptor("rLogs.bin");
     
     // Crear NodeReceptor en puerto 9090

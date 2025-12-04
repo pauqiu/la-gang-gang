@@ -2,6 +2,8 @@
 #include "communication.h"
 #include "messages.h"
 #include "endpoints.h"
+#include "logger.h"
+
 #include <iostream>
 #include <vector>
 #include <iomanip>
@@ -9,6 +11,9 @@
 
 class NodeClient {
 public:
+
+    NodeClient(FileSystem * FileSystem) : logger(FileSystem, "cLogs.bin") {}
+
     bool sendAuthentication(const std::string& user, const std::string& pass, int tries = 0) {
         currentUsername = user; // Guardar username para validación posterior
         
@@ -32,6 +37,7 @@ public:
     bool validateSessionWithProxy() {
         if (!hasValidToken()) {
             std::cerr << "[Client] No hay token válido.\n";
+            logger.error("The authentication token is not valid.");
             return false;
         }
         
@@ -69,6 +75,7 @@ public:
     std::vector<std::string> requestSensorList() {
         if (!hasValidToken()) {
             std::cerr << "[Client] No hay token válido.\n";
+            logger.error("The authentication token is not valid.");
             return {};
         }
         
@@ -95,12 +102,14 @@ public:
                                                 uint64_t startDate, 
                                                 uint64_t endDate) {
         if (!hasValidToken()) {
-            std::cerr << "[Client] No hay token válido. Autentíquese primero.\n";
+            std::cerr << "[Client] No hay token válido.\n";
+            logger.error("The authentication token is not valid.");
             return {};
         }
         
         if (sensorId.empty() || sensorId.length() > 16) {
             std::cerr << "[Client] Sensor ID inválido.\n";
+            logger.error("Unknown sensor ID.");
             return {};
         }
         
@@ -308,11 +317,13 @@ private:
     uint8_t currentRole = 0;
     bool tokenReceived = false;
     std::string currentUsername;
+    Logger logger;
 
     int connectToAuthServer() {
         int sock = connect_to(getAuthIp(), getAuthPort());
         if (sock < 0) {
             std::cerr << "[Client] Error al conectar con Auth.\n";
+            logger.error("Could not connect with the authentication system.");
         }
         return sock;
     }
@@ -321,6 +332,7 @@ private:
         int sock = connect_to(getProxyIp(), getProxyPort());
         if (sock < 0) {
             std::cerr << "[Client] Error al conectar con Proxy.\n";
+            logger.error("Could not communicate with Proxy.");
         }
         return sock;
     }
@@ -357,10 +369,12 @@ private:
         auto data = msg.serialize();
         if (!send_message(sock, data.data(), data.size())) {
             std::cerr << "[Client] Error al enviar mensaje.\n";
+            logger.error("Could not send authentication request.");
             return false;
         }
         
         std::cout << "[Client] Mensaje de autenticación enviado. Esperando respuesta...\n";
+        logger.info("Authentication request sent.");
         return true;
     }
 
@@ -370,6 +384,7 @@ private:
         
         if (bytes <= 0) {
             std::cerr << "[Client] Error al recibir respuesta del servidor.\n";
+            logger.error("The client didn't receive a proper answer from authentication.");
             return {};
         }
         
@@ -385,6 +400,7 @@ private:
             handleAuthError(response);
         } else {
             std::cerr << "[Client] Respuesta desconocida con ID: " << (int)response[0] << "\n";
+            logger.error("Received unknown message with ID ." + std::to_string((int)response[0]));
         }
     }
 
@@ -401,6 +417,8 @@ private:
         std::cout << "Token de sesión (hex): ";
         printToken(response.token);
         std::cout << "\n";
+
+        logger.success("User authenticated succesfullly.");
     }
     
     void handleAuthError(const std::vector<uint8_t>& data) {
@@ -409,6 +427,8 @@ private:
         std::cout << "\nERROR DE AUTENTICACIÓN\n";
         std::cout << "Código de error: " << (int)error.error_code << " - ";
         std::cout << getErrorMessage(error.error_code) << "\n\n";
+
+        logger.error("Could not authenticate user. Error code: " + std::to_string(error.error_code));
     }
 
     void printToken(const uint8_t token[32]) {
@@ -442,6 +462,7 @@ private:
         auto data = msg.serialize();
         if (!send_message(sock, data.data(), data.size())) {
             std::cerr << "[Client] Error al enviar validación de sesión.\n";
+            logger.error("Could not send validation token.");
             return false;
         }
         

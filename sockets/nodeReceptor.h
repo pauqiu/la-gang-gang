@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "filesystem.h"
 #include "logger.h"
+#include "endpoints.h"
 
 #include <string>
 #include <ctime>
@@ -30,7 +31,7 @@ private:
 
         std::cout << "[ReceptorNode] Guardando datos - Tilt: " << msg.tilt
                   << ", Echo: " << msg.echo << ", Volume: " << msg.volume
-                  << ", Temperature: " << msg.temperature
+                  << ", Intensidad de la luz: " << msg.light_intensity
                   << "\n";
 
         // Prepare data to send
@@ -52,10 +53,18 @@ private:
         logger.info("Received data from ultrasonic sensor: " + 
                     std::to_string(msg.echo));
 
+        logger.info("Received data from sound sensor: " + 
+                    std::to_string(msg.volume));
+
+        logger.info("Received data from light sensor: " + 
+                    std::to_string(msg.light_intensity));
+
         // TODO(@Paulette): Log data received from the rest of the sensors
         
         sendToSTorage(date, time_val, msg.tilt, TILT_SENSOR);
         sendToSTorage(date, time_val, msg.echo, ULTRASONIC_SENSOR);
+        sendToSTorage(date, time_val, msg.volume, SOUND_SENSOR);
+        sendToSTorage(date, time_val, msg.light_intensity, LIGHT_SENSOR);
 
         // Send data to storage
         close(client_socket);
@@ -125,8 +134,8 @@ private:
             }
             break;
 
-        case HUMIDITY_SENSOR:
-            if(value > 30) {
+        case LIGHT_SENSOR:
+            if(value < 300) {
                 alert_signal = 1;
             }
             break;
