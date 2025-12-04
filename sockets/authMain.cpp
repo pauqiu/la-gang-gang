@@ -2,23 +2,33 @@
 #include "security.h"
 #include "filesystem.h"
 #include "endpoints.h"
+#include "DataInjection.h"
 #include <iostream>
+#include <fstream>
 #include <QCoreApplication>
 
 int main(int argc, char *argv[]) {
-    // Inicializar QCoreApplication (necesario para QString y Qt)
     QCoreApplication app(argc, argv);
-
-    // Crear instancia de FileSystem
     FileSystem storage("aLogs.bin");
-    FileSystem users("disk.bin");
 
-    // Crear instancia de Security con FileSystem
+    const std::string usersDisk = "disk.bin";
+    bool firstRun = true;
+    {
+        std::ifstream f(usersDisk.c_str());
+        firstRun = !f.good();
+    }
+
+    FileSystem users(usersDisk);
+    bool injected = false;
+    if (firstRun) {
+        DataInjection::injectSampleData(users);
+        injected = true;
+    }
+
     Security security(&users);
 
     loadEndpoints("endpoints.txt");
 
-    // Pasar Security al NodeAuth
     NodeAuth auth(getAuthPort(), &security, &storage);
     auth.start();
 

@@ -132,6 +132,7 @@ add_executable(nodeAuthMain
     src/security.cpp
     src/filesystem.cpp
     src/encryptation.cpp
+    src/DataInjection.cpp
     sockets/endpoints.cpp
 )
 target_include_directories(nodeAuthMain PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
