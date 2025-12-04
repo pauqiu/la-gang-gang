@@ -22,7 +22,7 @@ int main() {
     std::cout << "\n2. Autenticando con Auth...\n";
     NodeClient client;
     
-    if (!client.sendAuthentication("supervisor01", "visor_super777")) {
+    if (!client.sendAuthentication("supervisor02", "gang_gang")) {
         std::cerr << "   ERROR: No se pudo autenticar\n";
         return 1;
     }

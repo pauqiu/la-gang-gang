@@ -565,6 +565,9 @@ void menuWindow::populateNodeSelector() {
     ui->nodeSelector->addItem("Proxy", NODE_PROXY);
     ui->nodeSelector->addItem("Auth", NODE_AUTH);
     ui->nodeSelector->addItem("Storage", NODE_STORAGE);
+    if (hasStorage2()) {
+        ui->nodeSelector->addItem("Storage 2", NODE_STORAGE2);
+    }
     if (hasReceptor()) {
         ui->nodeSelector->addItem("Receptor", NODE_RECEPTOR);
     }
@@ -704,6 +707,15 @@ void menuWindow::loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t end
             nodeIp = getStorageIp();
             nodePort = getStoragePort();
             break;
+        case NODE_STORAGE2:
+            if (!hasStorage2()) {
+                ui->logFilterErrorMsg->setText("Storage 2 not configured");
+                ui->logFilterErrorMsg->setVisible(true);
+                return;
+            }
+            nodeIp = getStorage2Ip();
+            nodePort = getStorage2Port();
+            break;
         case NODE_RECEPTOR:
             if (!hasReceptor()) {
                 ui->logFilterErrorMsg->setText("Receptor not configured");
@@ -729,7 +741,8 @@ void menuWindow::loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t end
     // Crear y enviar LogRequest
     LogRequest request;
     request.message_id = MSG_LOG_REQUEST;
-    request.node_type = nodeType;
+    // Storage 2 usa el mismo tipo de nodo que Storage para el request
+    request.node_type = (nodeType == NODE_STORAGE2) ? NODE_STORAGE : nodeType;
     std::memcpy(request.token, sessionToken, 32);
     request.startDate = startDate;
     request.endDate = endDate;

@@ -43,7 +43,8 @@ enum NodeType : uint8_t {
     NODE_AUTH = 2,
     NODE_STORAGE = 3,
     NODE_RECEPTOR = 4,
-    NODE_CLIENT = 5
+    NODE_CLIENT = 5,
+    NODE_STORAGE2 = 6
 };
 
 // Id de los sensores
