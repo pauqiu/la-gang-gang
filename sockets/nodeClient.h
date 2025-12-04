@@ -11,8 +11,8 @@
 
 class NodeClient {
 public:
-
-    NodeClient(FileSystem * FileSystem) : logger(FileSystem, "cLogs.bin") {}
+    NodeClient() : logger(nullptr, "") {}
+    NodeClient(FileSystem* fs) : logger(fs, "cLogs.bin") {}
 
     bool sendAuthentication(const std::string& user, const std::string& pass, int tries = 0) {
         currentUsername = user; // Guardar username para validación posterior

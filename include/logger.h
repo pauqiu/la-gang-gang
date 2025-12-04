@@ -16,12 +16,12 @@ public:
 
     Logger(FileSystem* fs, const std::string& logFileName)
         : filesystem(fs), logFile(logFileName) {
-        initializeLogFile();
+        if (filesystem) initializeLogFile();
     }
 
     void log(LogLevel level, const std::string& message) {
         std::string logEntry = formatLogEntry(level, message);
-        writeToFile(logEntry);
+        if (filesystem) writeToFile(logEntry);
     }
 
     void info(const std::string& message) {

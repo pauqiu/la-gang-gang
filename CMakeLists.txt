@@ -185,6 +185,7 @@ set_target_properties(storageTestClient PROPERTIES
 add_executable(test_log_request
     sockets/test_log_request.cpp
     sockets/endpoints.cpp
+    src/filesystem.cpp
 )
 target_include_directories(test_log_request PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_log_request PRIVATE Qt${QT_VERSION_MAJOR}::Core)
@@ -198,6 +199,7 @@ set_target_properties(test_log_request PROPERTIES
 add_executable(test_health_check
     sockets/test_health_check.cpp
     sockets/endpoints.cpp
+    src/filesystem.cpp
 )
 target_include_directories(test_health_check PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_health_check PRIVATE Qt${QT_VERSION_MAJOR}::Core)
@@ -211,6 +213,7 @@ set_target_properties(test_health_check PROPERTIES
 add_executable(test_round_robin
     sockets/test_round_robin.cpp
     sockets/endpoints.cpp
+    src/filesystem.cpp
 )
 target_include_directories(test_round_robin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(test_round_robin PRIVATE Qt${QT_VERSION_MAJOR}::Core)

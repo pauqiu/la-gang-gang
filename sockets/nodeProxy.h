@@ -19,7 +19,7 @@ struct StorageEndpoint {
 
 class NodeProxy : public NodeBase {
 public:
-    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "proxy_disk.bin"), roundRobinIndex(0) {
+    NodeProxy(int port, FileSystem* fs) : NodeBase(port), logger(fs, "pLogs.txt"), roundRobinIndex(0) {
         // Configurar storages disponibles
         storages.push_back({getStorageIp(), getStoragePort()});
         if (hasStorage2()) {
@@ -29,7 +29,7 @@ public:
             logger.info("Un solo storage configurado");
         }
         // Configurar soporte de logs usando método de clase base
-        setupLogSupport(fs, "proxy_disk.bin", NODE_PROXY);
+        setupLogSupport(fs, "pLogs.txt", NODE_PROXY);
         
         dispatcher.registerHandler(MSG_TOKEN_REGISTER, 
             [this](const std::vector<uint8_t>& buf, int client_socket) { 
