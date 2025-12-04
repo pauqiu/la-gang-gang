@@ -4,7 +4,7 @@
 #include <iostream>
 
 int main() {
-    FileSystem proxyFs("proxy_disk.bin");
+    FileSystem proxyFs("pLogs.bin");
     loadEndpoints("endpoints.txt");
     NodeProxy proxy(getProxyPort(), &proxyFs);
     proxy.start();

@@ -298,10 +298,10 @@ private:
         if (clientMsg.node_type == NODE_AUTH) {
             std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
             sendLogResponse(client_socket, NODE_AUTH, logs);
-            logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
+            // logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
         } else {
             logger.warning("Solicitud de logs para otro nodo recibida en Auth");
-            sendLogResponse(client_socket, clientMsg.node_type, {});
+            // sendLogResponse(client_socket, clientMsg.node_type, {});
         }
         
         close(client_socket);

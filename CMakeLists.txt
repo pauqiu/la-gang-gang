@@ -159,6 +159,7 @@ set_target_properties(nodeStorageMain PROPERTIES
 add_executable(nodeReceptor
     sockets/ReceptorMain.cpp
     src/filesystem.cpp
+    sockets/endpoints.cpp
 )
 target_include_directories(nodeReceptor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(nodeReceptor PRIVATE Qt${QT_VERSION_MAJOR}::Core)

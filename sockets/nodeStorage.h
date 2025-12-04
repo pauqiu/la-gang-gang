@@ -486,15 +486,15 @@ private:
     void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
         auto clientMsg = LogRequest::deserialize(buf);
         
-        logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
+        // logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
         
         // Storage no valida tokens, procesa directamente
         if (clientMsg.node_type == NODE_STORAGE) {
             std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
             sendLogResponse(client_socket, NODE_STORAGE, logs);
-            logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
+            // logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
         } else {
-            logger.warning("Solicitud de logs para otro nodo recibida en Storage");
+            // logger.warning("Solicitud de logs para otro nodo recibida en Storage");
             sendLogResponse(client_socket, clientMsg.node_type, {});
         }
         

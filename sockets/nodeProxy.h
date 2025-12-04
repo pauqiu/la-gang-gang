@@ -380,17 +380,17 @@ private:
             return;
         }
         
-        logger.info("Token válido para usuario: " + username);
+        // logger.info("Token válido para usuario: " + username);
         
         // Si es para este nodo (PROXY), usar métodos de clase base
         if (clientMsg.node_type == NODE_PROXY) {
             std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
             sendLogResponse(client_socket, NODE_PROXY, logs);
-            logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
+            // logger.success("Logs enviados al cliente: " + std::to_string(logs.size()) + " entradas");
         } else {
             // TODO: Forward to other nodes (Auth, Storage)
             logger.warning("Solicitud de logs para otro nodo no implementada aún");
-            sendLogResponse(client_socket, clientMsg.node_type, {});
+            // sendLogResponse(client_socket, clientMsg.node_type, {});
         }
         
         close(client_socket);
