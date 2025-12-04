@@ -1022,6 +1022,7 @@ struct HumiditySensorData {
 struct SensorsData {
     uint16_t message_id = MSG_SENSORS_DATA;
     uint16_t echo = 0; // From the ultrasonic sensor
+    uint16_t tilt = 0; // From the Tilt sensor
     uint16_t volume = 0; // From the sound sensor
     uint16_t temperature = 0; // From the humidity sensor
 
@@ -1057,15 +1058,8 @@ struct SensorsData {
             msg.echo = (static_cast<uint16_t>(buffer[3]) << 8)
                        | static_cast<uint16_t>(buffer[2]);
 
-            std::cout << "echo" << std::endl;
-
-            // pasar a little-endian
-            // msg.volume = (static_cast<uint16_t>(buffer[4]) << 8)
-            //              | static_cast<uint16_t>(buffer[5]);
-// 
-            // // temperature (big-endian)
-            // msg.temperature = (static_cast<uint16_t>(buffer[6]) << 8)
-            //                   | static_cast<uint16_t>(buffer[7]);
+            msg.tilt = (static_cast<uint16_t>(buffer[5]) << 8)
+                       | static_cast<uint16_t>(buffer[4]);
 
         }
         return msg;
