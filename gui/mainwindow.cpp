@@ -3,6 +3,7 @@
 #include "menuwindow.h"
 #include "../sockets/nodeClient.h"
 #include "../sockets/endpoints.h"
+#include "filesystem.h"
 #include <QDebug>
 #include <QMessageBox>
 
@@ -44,8 +45,10 @@ void MainWindow::on_logInButton_clicked()
         ui->passwordMessage->setVisible(false);
     }
 
+    FileSystem cLogger("cLogs.bin");
+
     // Crear cliente y autenticar
-    NodeClient* client = new NodeClient();  // ← Usar puntero para mantenerlo vivo
+    NodeClient* client = new NodeClient(&cLogger);  // ← Usar puntero para mantenerlo vivo
 
     bool authSuccess = client->sendAuthentication(
         ui->usernameInput->text().toStdString(),
