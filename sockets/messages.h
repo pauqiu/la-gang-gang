@@ -38,7 +38,7 @@ enum sensor : uint8_t {
     ULTRASONIC_SENSOR = 1,
     TILT_SENSOR = 2,
     SOUND_SENSOR = 3,
-    HUMIDITY_SENSOR = 4,
+    LIGHT_SENSOR = 4,
 };
 
 struct Message {
@@ -885,41 +885,12 @@ struct SoundSensorData {
     }
 };
 
-struct HumiditySensorData {
-    uint8_t message_id = MSG_HUMIDITY_SENSOR_DATA;
-    uint8_t sensor_id = HUMIDITY_SENSOR;
-    uint8_t date;
-    uint8_t time;
-    uint8_t data_lenght;
-    uint16_t temperature = 0;
-
-    std::vector<uint8_t> serialize() const {
-        std::vector<uint8_t> data;
-        data.push_back(message_id);
-        data.push_back(sensor_id);
-        data.push_back(temperature & 0xFF); // little-endian
-        data.push_back((temperature >> 8) & 0xFF);
-
-        return data;
-    }
-
-    static HumiditySensorData deserialize(const std::vector<uint8_t>& buffer) {
-        HumiditySensorData msg;
-        if (!buffer.empty()) {
-            msg.message_id = buffer[0];
-            msg.sensor_id = buffer[1];
-            msg.temperature = buffer[2] | (buffer[3] << 8);
-        }
-        return msg;
-    }
-};
-
 struct SensorsData {
     uint16_t message_id = MSG_SENSORS_DATA;
     uint16_t echo = 0; // From the ultrasonic sensor
     uint16_t tilt = 0; // From the Tilt sensor
     uint16_t volume = 0; // From the sound sensor
-    uint16_t temperature = 0; // From the humidity sensor
+    uint16_t light_intensity = 0; // From the humidity sensor
 
     std::vector<uint8_t> serialize() const {
         std::vector<uint8_t> data;
@@ -936,10 +907,6 @@ struct SensorsData {
         data.push_back((volume >> 8) & 0xFF);
         data.push_back(volume & 0xFF);
 
-        // temperature (big-endian)
-        data.push_back((temperature >> 8) & 0xFF);
-        data.push_back(temperature & 0xFF);
-
         return data;
     }
 
@@ -955,6 +922,12 @@ struct SensorsData {
 
             msg.tilt = (static_cast<uint16_t>(buffer[5]) << 8)
                        | static_cast<uint16_t>(buffer[4]);
+
+            msg.volume = (static_cast<uint16_t>(buffer[7]) << 8)
+                        | static_cast<uint16_t>(buffer[6]);
+
+            msg.light_intensity = (static_cast<uint16_t>(buffer[9]) << 8)
+                                | static_cast<uint16_t>(buffer[8]);
 
         }
         return msg;

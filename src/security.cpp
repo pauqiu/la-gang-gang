@@ -3,6 +3,8 @@
 
 #include <sstream>
 #include <vector>
+#include <regex>
+#include <string>
 
 #define USERS_PATH "Users.txt"
 #define MAX_USERS_DATA 3072
@@ -77,8 +79,22 @@ std::vector<std::vector<std::string> > Security::getUsers()
 
 bool Security::validPassword(QString password)
 {
-    if (password.size() > 10 || password.contains(":")) {
-        qDebug() << "Invalid password";
+    /**
+     *      (?=.*[a-z]): ensure at least one lowercase letter
+     *      (?=.*[A-Z]): ensure at least one uppercase letter
+     *      (?=.*\d): ensure at least one digit
+     *      (?=.*[@$!%*?&]): ensure at least one special character
+     */
+
+    std::regex criteria("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+
+    std::string temporalStd = password.toStdString();
+
+    if (password.size() > 10 && temporalStd.size() < 8 ) {
+        qDebug() << "[Security] Error: Password is too short";
+        return false;
+    } else if (!(std::regex_match(temporalStd, criteria))) {
+        qDebug() << "[Security] Error: Password doesn't meet the criteria";
         return false;
     }
 
