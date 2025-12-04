@@ -5,8 +5,10 @@
 #include "ui_menuwindow.h"
 #include "../sockets/nodeProxy.h"
 #include "../sockets/endpoints.h"
+#include "filesystem.h"
 
 #include <sstream>
+#include <algorithm>
 #include <unistd.h>
 #include <QPushButton>
 #include <QInputDialog>
@@ -563,6 +565,10 @@ void menuWindow::populateNodeSelector() {
     ui->nodeSelector->addItem("Proxy", NODE_PROXY);
     ui->nodeSelector->addItem("Auth", NODE_AUTH);
     ui->nodeSelector->addItem("Storage", NODE_STORAGE);
+    if (hasReceptor()) {
+        ui->nodeSelector->addItem("Receptor", NODE_RECEPTOR);
+    }
+    ui->nodeSelector->addItem("Client", NODE_CLIENT);
 }
 
 void menuWindow::on_logFilterButton_clicked() {
@@ -592,6 +598,94 @@ void menuWindow::on_logFilterButton_clicked() {
 }
 
 void menuWindow::loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t endDate) {
+    // Los logs del cliente son locales, leer del FileSystem
+    if (nodeType == NODE_CLIENT) {
+        // Leer logs locales del cliente
+        FileSystem clientFs("cLogs.bin");
+        std::vector<char> content = clientFs.readFile("cLogs.bin");
+        
+        if (content.empty()) {
+            ui->logFilterErrorMsg->setText("No client logs found");
+            ui->logFilterErrorMsg->setVisible(true);
+            ui->logsTable->clearContents();
+            ui->logsTable->setRowCount(0);
+            ui->logsTitle->setText("Client Logs (local - empty)");
+            return;
+        }
+        
+        // Filtrar logs por fecha
+        std::string fileContent(content.begin(), content.end());
+        std::istringstream iss(fileContent);
+        std::string line;
+        std::vector<std::string> filteredLogs;
+        
+        while (std::getline(iss, line)) {
+            if (line.empty() || line.length() < 10) continue;
+            if (line[4] != '-' || line[7] != '-') continue;
+            
+            try {
+                std::string dateStr = line.substr(0, 10);
+                dateStr.erase(std::remove(dateStr.begin(), dateStr.end(), '-'), dateStr.end());
+                uint64_t date = std::stoull(dateStr);
+                
+                if (date >= startDate && date <= endDate) {
+                    filteredLogs.push_back(line);
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+        
+        // Mostrar aviso de logs locales
+        ui->logFilterErrorMsg->setText("Reading local logs");
+        ui->logFilterErrorMsg->setStyleSheet("color: blue;");
+        ui->logFilterErrorMsg->setVisible(true);
+        
+        // Poblar tabla
+        ui->logsTitle->setText(QString("Client Logs (local - %1 entries)").arg(filteredLogs.size()));
+        ui->logsTable->clearContents();
+        ui->logsTable->setRowCount(filteredLogs.size());
+        ui->logsTable->setColumnCount(4);
+        
+        QStringList headers = {"Date", "Time", "Level", "Message"};
+        ui->logsTable->setHorizontalHeaderLabels(headers);
+        ui->logsTable->setColumnWidth(0, 100);
+        ui->logsTable->setColumnWidth(1, 80);
+        ui->logsTable->setColumnWidth(2, 80);
+        ui->logsTable->setColumnWidth(3, 400);
+        
+        for (size_t i = 0; i < filteredLogs.size(); i++) {
+            QString logLine = QString::fromStdString(filteredLogs[i]);
+            QString date = logLine.mid(0, 10);
+            QString time = logLine.length() >= 19 ? logLine.mid(11, 8) : "";
+            QString level = "", message = "";
+            
+            int bracketStart = logLine.indexOf('[');
+            int bracketEnd = logLine.indexOf(']');
+            if (bracketStart >= 0 && bracketEnd > bracketStart) {
+                level = logLine.mid(bracketStart + 1, bracketEnd - bracketStart - 1);
+                message = logLine.mid(bracketEnd + 2).trimmed();
+            } else {
+                message = logLine.mid(20).trimmed();
+            }
+            
+            ui->logsTable->setItem(i, 0, new QTableWidgetItem(date));
+            ui->logsTable->setItem(i, 1, new QTableWidgetItem(time));
+            
+            QTableWidgetItem* levelItem = new QTableWidgetItem(level);
+            if (level == "ERROR") levelItem->setBackground(QColor(255, 200, 200));
+            else if (level == "WARNING" || level == "WARN") levelItem->setBackground(QColor(255, 255, 200));
+            else if (level == "SUCCESS") levelItem->setBackground(QColor(200, 255, 200));
+            else levelItem->setBackground(QColor(220, 220, 220));
+            ui->logsTable->setItem(i, 2, levelItem);
+            
+            ui->logsTable->setItem(i, 3, new QTableWidgetItem(message));
+        }
+        
+        qDebug() << "Logs locales del cliente cargados:" << filteredLogs.size();
+        return;
+    }
+    
     // Determinar IP y puerto según el tipo de nodo
     std::string nodeIp;
     int nodePort;
@@ -608,6 +702,15 @@ void menuWindow::loadNodeLogs(uint8_t nodeType, uint64_t startDate, uint64_t end
         case NODE_STORAGE:
             nodeIp = getStorageIp();
             nodePort = getStoragePort();
+            break;
+        case NODE_RECEPTOR:
+            if (!hasReceptor()) {
+                ui->logFilterErrorMsg->setText("Receptor not configured");
+                ui->logFilterErrorMsg->setVisible(true);
+                return;
+            }
+            nodeIp = getReceptorIp();
+            nodePort = getReceptorPort();
             break;
         default:
             qDebug() << "Tipo de nodo desconocido";

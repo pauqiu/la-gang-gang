@@ -22,7 +22,10 @@ class nodeReceptor : public NodeBase {
 public:
 
     nodeReceptor(int port, FileSystem* fileSystem)
-        : NodeBase(port), logger(fileSystem, "rLogs.bin") {
+        : NodeBase(port), logger(fileSystem, "rLogs.txt") {
+        
+        // Configurar soporte de logs
+        setupLogSupport(fileSystem, "rLogs.txt", NODE_RECEPTOR);
         
         // Cargar endpoints y configurar storages
         loadEndpoints("endpoints.txt");
@@ -39,6 +42,12 @@ public:
                                    [this](const std::vector<uint8_t>& buf, 
                                         int client_socket) {
                                        onSensorsReceive(buf, client_socket);
+                                   });
+        
+        dispatcher.registerHandler(MSG_LOG_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf,
+                                        int client_socket) {
+                                       onLogRequest(buf, client_socket);
                                    });
     }
 
@@ -193,6 +202,20 @@ private:
         }
 
         return alert_signal;
+    }
+    
+    // Handler para solicitud de logs
+    void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto clientMsg = LogRequest::deserialize(buf);
+        
+        if (clientMsg.node_type == NODE_RECEPTOR) {
+            std::vector<std::string> logs = getLogsInRange(clientMsg.startDate, clientMsg.endDate);
+            sendLogResponse(client_socket, NODE_RECEPTOR, logs);
+        } else {
+            sendLogResponse(client_socket, clientMsg.node_type, {});
+        }
+        
+        close(client_socket);
     }
 };
 

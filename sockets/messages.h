@@ -41,7 +41,9 @@ enum MessageType : uint8_t {
 enum NodeType : uint8_t {
     NODE_PROXY = 1,
     NODE_AUTH = 2,
-    NODE_STORAGE = 3
+    NODE_STORAGE = 3,
+    NODE_RECEPTOR = 4,
+    NODE_CLIENT = 5
 };
 
 // Id de los sensores

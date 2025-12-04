@@ -7,10 +7,11 @@
 #include <map>
 
 // Almacenamiento de endpoints
-static std::string authIp, proxyIp, storageIp, storage2Ip;
-static int authPort = 0, proxyPort = 0, storagePort = 0, storage2Port = 0;
+static std::string authIp, proxyIp, storageIp, storage2Ip, receptorIp;
+static int authPort = 0, proxyPort = 0, storagePort = 0, storage2Port = 0, receptorPort = 0;
 static bool loaded = false;
 static bool storage2Available = false;
+static bool receptorAvailable = false;
 
 // Trim whitespace
 static std::string trim(const std::string& s) {
@@ -95,6 +96,12 @@ void loadEndpoints(const std::string& path) {
         storage2Available = true;
     }
     
+    // Parsear RECEPTOR si existe (opcional)
+    if (endpoints.find("RECEPTOR") != endpoints.end()) {
+        parseAddress(endpoints["RECEPTOR"], receptorIp, receptorPort);
+        receptorAvailable = true;
+    }
+    
     loaded = true;
 }
 
@@ -119,3 +126,8 @@ int         getStoragePort() { ensureLoaded(); return storagePort; }
 bool        hasStorage2()     { ensureLoaded(); return storage2Available; }
 std::string getStorage2Ip()   { ensureLoaded(); return storage2Ip; }
 int         getStorage2Port() { ensureLoaded(); return storage2Port; }
+
+// Getters - Receptor (opcional)
+bool        hasReceptor()     { ensureLoaded(); return receptorAvailable; }
+std::string getReceptorIp()   { ensureLoaded(); return receptorIp; }
+int         getReceptorPort() { ensureLoaded(); return receptorPort; }

@@ -14,3 +14,8 @@ int getStoragePort();
 bool hasStorage2();
 std::string getStorage2Ip();
 int getStorage2Port();
+
+// Receptor
+bool hasReceptor();
+std::string getReceptorIp();
+int getReceptorPort();

@@ -292,7 +292,7 @@ private:
     void onLogRequest(const std::vector<uint8_t>& buf, int client_socket) {
         auto clientMsg = LogRequest::deserialize(buf);
         
-        logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
+        // logger.info("LogRequest recibido - Node Type: " + std::to_string(clientMsg.node_type));
         
         // Auth no valida tokens (es el que los genera), procesa directamente
         if (clientMsg.node_type == NODE_AUTH) {
