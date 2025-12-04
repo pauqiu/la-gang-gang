@@ -497,6 +497,100 @@ struct ListSensorRequest {
 };
 #pragma pack(pop)
 
+// Mensajes para gestión de usuarios/roles (Client -> Auth)
+enum {
+    MSG_USER_CREATE = 27,
+    MSG_USER_UPDATE = 28,
+    MSG_ROLE_CREATE = 29,
+    MSG_ROLE_UPDATE = 30,
+    MSG_MANAGE_RESPONSE = 31,
+    MSG_USERS_LIST_REQUEST = 32,
+    MSG_USERS_LIST_RESPONSE = 33,
+    MSG_ROLES_LIST_REQUEST = 34,
+    MSG_ROLES_LIST_RESPONSE = 35,
+};
+
+// UserCreate - Cliente solicita crear usuario
+struct UserCreate {
+    uint8_t message_id = MSG_USER_CREATE;
+    std::vector<uint8_t> serialize() const { return {}; }
+    static UserCreate deserialize(const std::vector<uint8_t>& buffer) {
+        UserCreate msg;
+        return msg;
+    }
+};
+
+// UserUpdate - Cliente solicita actualizar usuario
+struct UserUpdate {
+    uint8_t message_id = MSG_USER_UPDATE;
+    std::vector<uint8_t> serialize() const { return {}; }
+    static UserUpdate deserialize(const std::vector<uint8_t>& buffer) {
+        UserUpdate msg; return msg;
+    }
+};
+
+// RoleCreate - Cliente solicita crear rol
+struct RoleCreate {
+    uint8_t message_id = MSG_ROLE_CREATE;
+    std::vector<uint8_t> serialize() const { return {}; }
+    static RoleCreate deserialize(const std::vector<uint8_t>& buffer) {
+        RoleCreate msg; return msg;
+    }
+};
+
+// RoleUpdate - Cliente solicita actualizar rol
+struct RoleUpdate {
+    uint8_t message_id = MSG_ROLE_UPDATE;
+    std::vector<uint8_t> serialize() const { return {}; }
+    static RoleUpdate deserialize(const std::vector<uint8_t>& buffer) {
+        RoleUpdate msg; return msg;
+    }
+};
+
+// ManageResponse - Auth responde a operaciones de gestión (éxito/fracaso)
+#pragma pack(push,1)
+struct ManageResponse {
+    uint8_t message_id = MSG_MANAGE_RESPONSE;
+    uint8_t status;
+    std::vector<uint8_t> serialize() const {
+        std::vector<uint8_t> out;
+        out.push_back(message_id);
+        out.push_back(status);
+        return out;
+    }
+    static ManageResponse deserialize(const std::vector<uint8_t>& buf) {
+        ManageResponse r;
+        if (buf.size() >= 2) {
+            r.message_id = buf[0];
+            r.status = buf[1];
+        }
+        return r;
+    }
+};
+#pragma pack(pop)
+
+// UsersListRequest - solicitar lista de usuarios
+struct UsersListRequest { uint8_t message_id = MSG_USERS_LIST_REQUEST; std::vector<uint8_t> serialize() const { return {message_id}; } };
+
+// UsersListResponse - respuesta con lista de usuarios
+struct UsersListResponse {
+    uint8_t message_id = MSG_USERS_LIST_RESPONSE;
+    uint8_t entriesCount;
+    std::vector<uint8_t> serialize() const { return {}; }
+    static UsersListResponse deserialize(const std::vector<uint8_t>& buf) {
+        UsersListResponse res;
+        if (buf.empty()) return res;
+        res.message_id = buf[0];
+        if (buf.size() < 2) return res;
+        res.entriesCount = buf[1];
+        return res;
+    }
+};
+
+// RolesListRequest/Response
+struct RolesListRequest { uint8_t message_id = MSG_ROLES_LIST_REQUEST; std::vector<uint8_t> serialize() const { return {message_id}; } };
+struct RolesListResponse { uint8_t message_id = MSG_ROLES_LIST_RESPONSE; uint8_t entriesCount; std::vector<uint8_t> serialize() const { return {}; } };
+
 // ListSensorRequestWithoutToken - Proxy envía al Storage (sin token)
 // Tamaño: 1 byte (solo message_id)
 #pragma pack(push, 1)

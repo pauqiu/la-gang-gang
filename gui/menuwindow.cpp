@@ -183,7 +183,8 @@ void menuWindow::loadRolesTable()
     QStringList headers = {"ID", "Role Name", "Permissions", "Action"};
     ui->rolesTable->setHorizontalHeaderLabels(headers);
 
-    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    // Solicitar lista de roles al nodo Auth
+    auto roleLines = client.requestRolesList();
     this->rolesAmount = 0;
 
     int row = 0;
@@ -287,7 +288,7 @@ void menuWindow::setUIByRole()
 
 void menuWindow::loadUsersTable()
 {
-    std::vector<std::vector<std::string>> users = security->getUsers();
+    auto users = client.requestUsersList();
     ui->usersTable->clearContents();
     ui->usersTable->setRowCount(users.size());
     ui->usersTable->setColumnCount(3);
@@ -300,13 +301,13 @@ void menuWindow::loadUsersTable()
     ui->usersTable->setColumnWidth(2, 100);
 
     for (int i = 0; i < users.size(); ++i) {
-        const std::vector<std::string> usr = users[i];
+        const auto &usr = users[i];
 
         QTableWidgetItem *usernameItem = new QTableWidgetItem(QString::fromStdString(usr[0]));
         usernameItem->setFlags(usernameItem->flags() ^ Qt::ItemIsEditable);
         ui->usersTable->setItem(i, 0, usernameItem);
 
-        QTableWidgetItem *roleItem = new QTableWidgetItem(QString::fromStdString(usr[2]));
+        QTableWidgetItem *roleItem = new QTableWidgetItem(QString::fromStdString(usr[1]));
         roleItem->setFlags(roleItem->flags() ^ Qt::ItemIsEditable);
         ui->usersTable->setItem(i, 1, roleItem);
 
@@ -340,9 +341,13 @@ void menuWindow::on_addUserButton_clicked()
         QString password = dialog.getPassword();
         QString role = dialog.getSelectedRole();
 
-        if (security->registerUser(username, password, role) == 0) {
-            qDebug() << "Nuevo usuario:" << username << "Rol:" << role;
+        // Enviar petición al nodo Auth para crear el usuario
+        bool ok = client.sendUserCreate(username.toStdString(), password.toStdString(), role.toStdString());
+        if (ok) {
+            qDebug() << "Solicitud de creación de usuario enviada y confirmada por Auth:" << username << "Rol:" << role;
             loadUsersTable();
+        } else {
+            qDebug() << "Error al crear usuario en Auth";
         }
     }
 }
@@ -373,8 +378,13 @@ void menuWindow::onEditUserRoleClicked(int row)
         QString newUsername = dialog.getUsername();
         QString newRole = dialog.getSelectedRole();
 
-        security->updateUser(username, newUsername, newRole);
-        loadUsersTable();
+        bool ok = client.sendUserUpdate(username.toStdString(), newUsername.toStdString(), newRole.toStdString());
+        if (ok) {
+            qDebug() << "Usuario actualizado en Auth:" << username << "->" << newUsername << "Rol:" << newRole;
+            loadUsersTable();
+        } else {
+            qDebug() << "Error al actualizar usuario en Auth";
+        }
     }
 }
 
@@ -387,12 +397,11 @@ void menuWindow::on_addRoleButton_clicked()
 
         this->rolesAmount++;
 
-        if (rights->addRole(this->rolesAmount, role.toStdString())) {
-            qDebug() << "Nuevo rol creado:" << role;
-
-            if (rights->addPermissions(this->rolesAmount, permissions.toStdString())) {
-                qDebug() << "Permisos asignados:" << permissions;
-            }
+        bool ok = client.sendRoleCreate(this->rolesAmount, role.toStdString(), permissions.toStdString());
+        if (ok) {
+            qDebug() << "Solicitud de creación de rol enviada y confirmada por Auth:" << role;
+        } else {
+            qDebug() << "Error al crear rol en Auth";
         }
 
         loadRolesTable();

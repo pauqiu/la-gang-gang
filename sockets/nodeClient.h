@@ -148,6 +148,161 @@ public:
         return logs;
     }
 
+
+    // Gestión de usuarios/roles
+    bool sendUserCreate(const std::string& username, const std::string& password, const std::string& role) {
+        int sock = connectToAuthServer();
+        if (sock < 0) return false;
+
+        std::vector<uint8_t> data;
+        data.push_back(MSG_USER_CREATE);
+        data.push_back((uint8_t)std::min<size_t>(username.size(), 255));
+        data.insert(data.end(), username.begin(), username.end());
+        data.push_back((uint8_t)std::min<size_t>(password.size(), 255));
+        data.insert(data.end(), password.begin(), password.end());
+        data.push_back((uint8_t)std::min<size_t>(role.size(), 255));
+        data.insert(data.end(), role.begin(), role.end());
+
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return false; }
+
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return false;
+        if (resp[0] != MSG_MANAGE_RESPONSE) return false;
+        auto mr = ManageResponse::deserialize(resp);
+        return mr.status == 0;
+    }
+
+    bool sendUserUpdate(const std::string& oldUsername, const std::string& newUsername, const std::string& newRole) {
+        int sock = connectToAuthServer();
+        if (sock < 0) return false;
+
+        std::vector<uint8_t> data;
+        data.push_back(MSG_USER_UPDATE);
+        data.push_back((uint8_t)std::min<size_t>(oldUsername.size(), 255));
+        data.insert(data.end(), oldUsername.begin(), oldUsername.end());
+        data.push_back((uint8_t)std::min<size_t>(newUsername.size(), 255));
+        data.insert(data.end(), newUsername.begin(), newUsername.end());
+        data.push_back((uint8_t)std::min<size_t>(newRole.size(), 255));
+        data.insert(data.end(), newRole.begin(), newRole.end());
+
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return false; }
+
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return false;
+        if (resp[0] != MSG_MANAGE_RESPONSE) return false;
+        auto mr = ManageResponse::deserialize(resp);
+        return mr.status == 0;
+    }
+
+    // Solicitar lista de usuarios al nodo Auth
+    std::vector<std::vector<std::string>> requestUsersList() {
+        std::vector<std::vector<std::string>> result;
+        int sock = connectToAuthServer();
+        if (sock < 0) return result;
+
+        UsersListRequest req;
+        auto data = req.serialize();
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return result; }
+
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return result;
+        if (resp[0] != MSG_USERS_LIST_RESPONSE) return result;
+
+        // parse entries
+        size_t idx = 1;
+        if (idx >= resp.size()) return result;
+        uint8_t count = resp[idx++];
+        for (int i = 0; i < count; ++i) {
+            if (idx >= resp.size()) break;
+            uint8_t ulen = resp[idx++];
+            if (idx + ulen > resp.size()) break;
+            std::string uname((char*)&resp[idx], ulen); idx += ulen;
+            if (idx >= resp.size()) break;
+            uint8_t rlen = resp[idx++];
+            if (idx + rlen > resp.size()) break;
+            std::string role((char*)&resp[idx], rlen); idx += rlen;
+            result.push_back({uname, role});
+        }
+
+        return result;
+    }
+
+    bool sendRoleCreate(int id, const std::string& roleName, const std::string& permissions) {
+        int sock = connectToAuthServer();
+        if (sock < 0) return false;
+
+        std::vector<uint8_t> data;
+        data.push_back(MSG_ROLE_CREATE);
+        for (int b = 3; b >= 0; --b) data.push_back((id >> (b*8)) & 0xFF);
+        data.push_back((uint8_t)std::min<size_t>(roleName.size(), 255));
+        data.insert(data.end(), roleName.begin(), roleName.end());
+        data.push_back((uint8_t)std::min<size_t>(permissions.size(), 255));
+        data.insert(data.end(), permissions.begin(), permissions.end());
+
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return false; }
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return false;
+        if (resp[0] != MSG_MANAGE_RESPONSE) return false;
+        auto mr = ManageResponse::deserialize(resp);
+        return mr.status == 0;
+    }
+
+    bool sendRoleUpdate(const std::string& oldRoleName, const std::string& newRoleName, const std::string& permissions) {
+        int sock = connectToAuthServer();
+        if (sock < 0) return false;
+
+        std::vector<uint8_t> data;
+        data.push_back(MSG_ROLE_UPDATE);
+        data.push_back((uint8_t)std::min<size_t>(oldRoleName.size(), 255));
+        data.insert(data.end(), oldRoleName.begin(), oldRoleName.end());
+        data.push_back((uint8_t)std::min<size_t>(newRoleName.size(), 255));
+        data.insert(data.end(), newRoleName.begin(), newRoleName.end());
+        data.push_back((uint8_t)std::min<size_t>(permissions.size(), 255));
+        data.insert(data.end(), permissions.begin(), permissions.end());
+
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return false; }
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return false;
+        if (resp[0] != MSG_MANAGE_RESPONSE) return false;
+        auto mr = ManageResponse::deserialize(resp);
+        return mr.status == 0;
+    }
+
+    // Solicitar lista de roles al nodo Auth
+    std::vector<std::string> requestRolesList() {
+        std::vector<std::string> result;
+        int sock = connectToAuthServer();
+        if (sock < 0) return result;
+
+        RolesListRequest req;
+        auto data = req.serialize();
+        if (!send_message(sock, data.data(), data.size())) { close(sock); return result; }
+
+        auto resp = receiveResponse(sock);
+        close(sock);
+        if (resp.empty()) return result;
+        if (resp[0] != MSG_ROLES_LIST_RESPONSE) return result;
+
+        size_t idx = 1;
+        if (idx >= resp.size()) return result;
+        uint8_t count = resp[idx++];
+        for (int i = 0; i < count; ++i) {
+            if (idx >= resp.size()) break;
+            uint8_t len = resp[idx++];
+            if (idx + len > resp.size()) break;
+            std::string line((char*)&resp[idx], len); idx += len;
+            result.push_back(line);
+        }
+
+        return result;
+    }
+    
+
 private:
     uint8_t sessionToken[32] = {0};
     uint8_t currentRole = 0;
@@ -341,7 +496,7 @@ private:
         std::cout << "[Client] Solicitud de lista de sensores enviada al Proxy...\n";
         return true;
     }
-    
+
     // Enviar solicitud de datos de sensor específico
     bool sendDataRequest(int sock, const std::string& sensorId, 
                         uint64_t startDate, uint64_t endDate) {

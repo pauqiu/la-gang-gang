@@ -27,9 +27,14 @@ int main(int argc, char *argv[]) {
 
     Security security(&users);
 
+    RightsValidation rights(&users);
+    if (!rights.initialize()) {
+        std::cerr << "Warning: RightsValidation::initialize() devolvió false\n";
+    }
+
     loadEndpoints("endpoints.txt");
 
-    NodeAuth auth(getAuthPort(), &security, &storage);
+    NodeAuth auth(getAuthPort(), &security, &rights, &storage);
     auth.start();
 
     std::cout << "[System] Nodo Auth iniciado. Escribe '#' para detenerlo.\n";

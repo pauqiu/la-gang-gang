@@ -2,7 +2,8 @@
 #include "messages.h"
 #include "security.h"
 #include "filesystem.h"
-#include "../include/logger.h"
+#include "RightsValidation/RightsValidation.h"
+#include "logger.h"
 #include "endpoints.h"
 #include <iostream>
 #include <cstring>
@@ -10,19 +11,49 @@
 
 class NodeAuth : public NodeBase {
 public:
-    NodeAuth(int port, Security* securityInstance, FileSystem* fs)
-        : NodeBase(port), security(securityInstance), logger(fs, "aLogs.bin") {
-        // Configurar soporte de logs usando método de clase base
+    NodeAuth(int port, Security* securityInstance, RightsValidation* rightsInstance, FileSystem* fs)
+        : NodeBase(port), security(securityInstance), rights(rightsInstance), logger(fs, "aLogs.bin") {
         setupLogSupport(fs, "aLogs.bin", NODE_AUTH);
         
         dispatcher.registerHandler(MSG_AUTHENTICATION,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onAuthentication(buf, client_socket);
                                    });
-        
+
         dispatcher.registerHandler(MSG_LOG_REQUEST,
                                    [this](const std::vector<uint8_t>& buf, int client_socket) {
                                        onLogRequest(buf, client_socket);
+                                   });
+
+        // Handlers para gestión de usuarios/roles
+        dispatcher.registerHandler(MSG_USER_CREATE,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onUserCreate(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_USER_UPDATE,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onUserUpdate(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_ROLE_CREATE,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onRoleCreate(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_ROLE_UPDATE,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onRoleUpdate(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_USERS_LIST_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onUsersListRequest(buf, client_socket);
+                                   });
+
+        dispatcher.registerHandler(MSG_ROLES_LIST_REQUEST,
+                                   [this](const std::vector<uint8_t>& buf, int client_socket) {
+                                       onRolesListRequest(buf, client_socket);
                                    });
     }
 
@@ -50,8 +81,132 @@ public:
         close(client_socket);
     }
 
+    // --- Handlers para gestión de usuarios/roles ---
+    void onUserCreate(const std::vector<uint8_t>& buf, int client_socket) {
+        size_t i = 1;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t ulen = buf[i++];
+        if (i + ulen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string username((char*)&buf[i], ulen); i += ulen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t plen = buf[i++];
+        if (i + plen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string password((char*)&buf[i], plen); i += plen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t rlen = buf[i++];
+        if (i + rlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string role((char*)&buf[i], rlen); i += rlen;
+
+        bool ok = (security->registerUser(QString::fromStdString(username), QString::fromStdString(password), QString::fromStdString(role)) == 0);
+        sendManageResponse(client_socket, ok ? 0 : 1);
+        close(client_socket);
+    }
+
+    void onUserUpdate(const std::vector<uint8_t>& buf, int client_socket) {
+        size_t i = 1;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t oldlen = buf[i++];
+        if (i + oldlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string oldUser((char*)&buf[i], oldlen); i += oldlen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t newlen = buf[i++];
+        if (i + newlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string newUser((char*)&buf[i], newlen); i += newlen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t rlen = buf[i++];
+        if (i + rlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string newRole((char*)&buf[i], rlen); i += rlen;
+
+        int res = security->updateUser(QString::fromStdString(oldUser), QString::fromStdString(newUser), QString::fromStdString(newRole));
+        sendManageResponse(client_socket, res == 0 ? 0 : 1);
+        close(client_socket);
+    }
+
+    void onRoleCreate(const std::vector<uint8_t>& buf, int client_socket) {
+        size_t i = 1;
+        if (i + 4 > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        int id = 0;
+        for (int b = 0; b < 4; ++b) id = (id << 8) | buf[i++];
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t rlen = buf[i++];
+        if (i + rlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string roleName((char*)&buf[i], rlen); i += rlen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t plen = buf[i++];
+        if (i + plen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string permissions((char*)&buf[i], plen); i += plen;
+
+        bool ok = false;
+        if (rights) {
+            ok = rights->addRole(id, roleName);
+            if (ok && !permissions.empty()) ok = rights->addPermissions(id, permissions);
+        }
+        sendManageResponse(client_socket, ok ? 0 : 1);
+        close(client_socket);
+    }
+
+    void onRoleUpdate(const std::vector<uint8_t>& buf, int client_socket) {
+        size_t i = 1;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t oldlen = buf[i++];
+        if (i + oldlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string oldRole((char*)&buf[i], oldlen); i += oldlen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t newlen = buf[i++];
+        if (i + newlen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string newRole((char*)&buf[i], newlen); i += newlen;
+        if (i >= buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        uint8_t plen = buf[i++];
+        if (i + plen > buf.size()) { sendManageResponse(client_socket, 1); close(client_socket); return; }
+        std::string permissions((char*)&buf[i], plen); i += plen;
+
+        bool ok = false;
+        if (rights) {
+            ok = rights->getRoleManager().updateRole(oldRole, newRole, permissions);
+        }
+        sendManageResponse(client_socket, ok ? 0 : 1);
+        close(client_socket);
+    }
+
+    void onUsersListRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        auto users = security->getUsers();
+        std::vector<uint8_t> out;
+        out.push_back(MSG_USERS_LIST_RESPONSE);
+        out.push_back((uint8_t)users.size());
+        for (const auto &u : users) {
+            std::string uname = u[0];
+            std::string role = u[2];
+            out.push_back((uint8_t)std::min<size_t>(uname.size(), 255));
+            out.insert(out.end(), uname.begin(), uname.end());
+            out.push_back((uint8_t)std::min<size_t>(role.size(), 255));
+            out.insert(out.end(), role.begin(), role.end());
+        }
+        send_message(client_socket, out.data(), out.size());
+        close(client_socket);
+    }
+
+    void onRolesListRequest(const std::vector<uint8_t>& buf, int client_socket) {
+        std::vector<std::string> lines = rights->getRoleManager().readRolesFile();
+        std::vector<uint8_t> out;
+        out.push_back(MSG_ROLES_LIST_RESPONSE);
+        out.push_back((uint8_t)lines.size());
+        for (const auto &line : lines) {
+            out.push_back((uint8_t)std::min<size_t>(line.size(), 255));
+            out.insert(out.end(), line.begin(), line.end());
+        }
+        send_message(client_socket, out.data(), out.size());
+        close(client_socket);
+    }
+
+    void sendManageResponse(int client_socket, uint8_t status) {
+        ManageResponse r; r.message_id = MSG_MANAGE_RESPONSE; r.status = status;
+        auto data = r.serialize();
+        send_message(client_socket, data.data(), data.size());
+    }
+
 private:
     Security* security;  // Puntero a Security
+    RightsValidation* rights;
     Logger logger;
 
 

@@ -9,6 +9,7 @@
 #include "RightsValidation/RolesFileManager.h"
 #include "Role.h"
 #include "security.h"
+#include "../sockets/nodeClient.h"
 
 namespace Ui {
 class menuWindow;
@@ -65,6 +66,7 @@ private:
     QVector<Role> roles;
     Security * security;
     RightsValidation * rights;
+    NodeClient client;
     int rolesAmount;
     uint8_t sessionToken[32];
     QStringList availableSensors;
