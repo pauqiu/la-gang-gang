@@ -161,5 +161,5 @@ void loop() {
     Serial.println("No se pudo conectar al servidor");
   }
 
-  delay(1000); // Esperar 15 segundos
+  delay(15000); // Esperar 15 segundos
 }
