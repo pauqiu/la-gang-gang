@@ -573,6 +573,7 @@ void menuWindow::populateNodeSelector() {
 
 void menuWindow::on_logFilterButton_clicked() {
     ui->logFilterErrorMsg->setVisible(false);
+    ui->logFilterErrorMsg->setStyleSheet("color: red;");  // Rojo por defecto para errores
     
     if (ui->nodeSelector->currentIndex() < 0) {
         ui->logFilterErrorMsg->setText("Select a node");
