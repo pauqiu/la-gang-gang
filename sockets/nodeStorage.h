@@ -2,18 +2,21 @@
 #include "node_base.h"
 #include "messages.h"
 #include "filesystem.h"
+#include "../include/raid_controller.h"
 #include "../include/logger.h"
 #include <iostream>
 #include <cstring>
 #include <vector>
 #include <sstream>
 
+// Template para soportar FileSystem o RaidController
+template<typename StorageType = FileSystem>
 class NodeStorage : public NodeBase {
 public:
-    NodeStorage(int port, FileSystem* fileSystemInstance)
-        : NodeBase(port), filesystem(fileSystemInstance), logger(fileSystemInstance, "sLogs.bin") {
-        // Configurar soporte de logs usando método de clase base
-        setupLogSupport(fileSystemInstance, "sLogs.bin", NODE_STORAGE);
+    NodeStorage(int port, StorageType* storageInstance)
+        : NodeBase(port), filesystem(storageInstance), logger(storageInstance, "sLogs.bin") {
+        // Configurar soporte de logs usando método de clase base (usa disco primario para lectura)
+        setupLogSupport(getLogFilesystem(storageInstance), "sLogs.bin", NODE_STORAGE);
 
         // Registrar handlers para cada tipo de mensaje
         dispatcher.registerHandler(MSG_STORAGE_SAVE,
@@ -141,8 +144,12 @@ public:
     }
 
 private:
-    FileSystem* filesystem;
-    Logger logger;
+    StorageType* filesystem;
+    Logger<StorageType> logger;
+    
+    // Helper para obtener FileSystem* para logs (funciona con FileSystem y RaidController)
+    static FileSystem* getLogFilesystem(FileSystem* fs) { return fs; }
+    static FileSystem* getLogFilesystem(RaidController* raid) { return raid->getPrimaryDisk(); }
 
     // Mapeo de sensores conocidos
     std::map<std::string, uint8_t> sensorMap = {

@@ -317,7 +317,7 @@ private:
     uint8_t currentRole = 0;
     bool tokenReceived = false;
     std::string currentUsername;
-    Logger logger;
+    Logger<> logger;
 
     int connectToAuthServer() {
         int sock = connect_to(getAuthIp(), getAuthPort());

@@ -207,7 +207,7 @@ public:
 private:
     Security* security;  // Puntero a Security
     RightsValidation* rights;
-    Logger logger;
+    Logger<> logger;
 
 
     void validateCredentials(const AuthMessage& msg, bool& valid,

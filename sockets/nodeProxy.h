@@ -58,7 +58,7 @@ public:
     }
 
 private:
-    Logger logger;
+    Logger<> logger;
     std::vector<StorageEndpoint> storages;
     size_t roundRobinIndex;
     

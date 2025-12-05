@@ -5,6 +5,8 @@
 #include <sstream>
 #include <iomanip>
 
+// Template para soportar FileSystem y RaidController
+template<typename StorageType = FileSystem>
 class Logger {
 public:
     enum LogLevel {
@@ -14,7 +16,7 @@ public:
         SUCCESS
     };
 
-    Logger(FileSystem* fs, const std::string& logFileName)
+    Logger(StorageType* fs, const std::string& logFileName)
         : filesystem(fs), logFile(logFileName) {
         if (filesystem) initializeLogFile();
     }
@@ -41,7 +43,7 @@ public:
     }
 
 private:
-    FileSystem* filesystem;
+    StorageType* filesystem;
     std::string logFile;
 
     void initializeLogFile() {

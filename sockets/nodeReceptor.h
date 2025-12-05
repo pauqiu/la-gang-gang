@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    Logger logger;
+    Logger<> logger;
     std::vector<StorageNode> storages;
 
     void onSensorsReceive(const std::vector<uint8_t>& buf, int client_socket) {

@@ -1,5 +1,6 @@
 #include "nodeStorage.h"
 #include "filesystem.h"
+#include "../include/raid_controller.h"
 #include "endpoints.h"
 #include <iostream>
 #include <QCoreApplication>
@@ -19,15 +20,22 @@ int main(int argc, char *argv[]) {
     
     std::string ip = isSecondary ? getStorage2Ip() : getStorageIp();
     int port = isSecondary ? getStorage2Port() : getStoragePort();
-    std::string diskFile = isSecondary ? "sensors2.bin" : "sensors.bin";
     
-    FileSystem storage(diskFile);
-    NodeStorage storageNode(port, &storage);
+    // RAID 1: Crear dos discos para mirroring
+    std::string diskPrimary = isSecondary ? "sensors2_disk1.bin" : "sensors_disk1.bin";
+    std::string diskMirror = isSecondary ? "sensors2_disk2.bin" : "sensors_disk2.bin";
+    
+    FileSystem disk1(diskPrimary);
+    FileSystem disk2(diskMirror);
+    RaidController raid(&disk1, &disk2);
+    
+    NodeStorage<RaidController> storageNode(port, &raid);
     storageNode.start();
     
     std::cout << "[System] Nodo Storage" << (isSecondary ? "2" : "") 
-              << " iniciado en puerto " << port << ".\n";
+              << " iniciado en puerto " << port << " con RAID 1.\n";
     std::cout << "IP -> " << ip << std::endl;
+    std::cout << "[RAID1] Discos: " << diskPrimary << " (primario), " << diskMirror << " (espejo)\n";
     std::cout << "[System] Escribe '#' para detenerlo.\n";
     
     std::string input;
