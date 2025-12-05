@@ -5,10 +5,10 @@
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
+#include <vector>
+#include "crypto.h"
 
-// ----------------------------------------------------
 // Crear socket servidor
-// ----------------------------------------------------
 inline int create_server(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
@@ -23,9 +23,7 @@ inline int create_server(int port) {
     return sock;
 }
 
-// ----------------------------------------------------
 // Crear socket cliente
-// ----------------------------------------------------
 inline int connect_to(const std::string& ip, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
@@ -38,17 +36,20 @@ inline int connect_to(const std::string& ip, int port) {
     return sock;
 }
 
-// ----------------------------------------------------
-// Enviar mensaje binario
-// ----------------------------------------------------
+// Enviar mensaje binario (cifrado)
 inline bool send_message(int sock, const void* data, size_t size) {
-    ssize_t sent = send(sock, data, size, 0);
+    std::vector<uint8_t> encrypted(size);
+    crypto::encrypt(data, encrypted.data(), size);
+    ssize_t sent = send(sock, encrypted.data(), size, 0);
     return sent == (ssize_t)size;
 }
 
-// ----------------------------------------------------
-// Recibir mensaje binario
-// ----------------------------------------------------
+// Recibir mensaje binario (descifrado)
 inline ssize_t recv_message(int sock, void* buffer, size_t size) {
-    return recv(sock, buffer, size, 0);
+    ssize_t received = recv(sock, buffer, size, 0);
+    if (received > 0) {
+        crypto::xor_transform(buffer, received);
+        std::cout << "Mensaje encriptado: " << received << " bytes" << std::endl;
+    }
+    return received;
 }

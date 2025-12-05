@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 
 #include "messages.h"
+#include "communication.h"
 
 /**
  * HealthChecker - Verifica si un nodo está activo
@@ -41,17 +42,17 @@ public:
             return false;
         }
 
-        // Enviar health check
+        // Enviar health check (cifrado)
         HealthCheck check;
         auto data = check.serialize();
-        if (send(sock, data.data(), data.size(), 0) != (ssize_t)data.size()) {
+        if (!send_message(sock, data.data(), data.size())) {
             ::close(sock);
             return false;
         }
 
-        // Esperar respuesta
+        // Esperar respuesta (descifrado)
         std::vector<uint8_t> buffer(8);
-        ssize_t received = recv(sock, buffer.data(), buffer.size(), 0);
+        ssize_t received = recv_message(sock, buffer.data(), buffer.size());
         ::close(sock);
 
         return (received > 0 && buffer[0] == MSG_HEALTH_RESPONSE);
