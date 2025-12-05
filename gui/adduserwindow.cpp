@@ -1,6 +1,7 @@
 #include "adduserwindow.h"
 #include "ui_adduserwindow.h"
 #include <QPushButton>
+#include <regex>
 
 addUserWindow::addUserWindow(const QList<Role>& roles, QWidget *parent) :
     QDialog(parent),
@@ -11,6 +12,7 @@ addUserWindow::addUserWindow(const QList<Role>& roles, QWidget *parent) :
 
     ui->passwordMessage->setVisible(false);
     ui->usernameMessage->setVisible(false);
+    ui->passwordMessage->setText("Password must be at least 8 chars and include uppercase, lowercase, digit and special char.");
 
     for (const Role& r : roles) {
         ui->rolesComboBox->addItem(r.name);
@@ -68,9 +70,23 @@ void addUserWindow::validateInputs()
         ui->usernameMessage->setVisible(false);
     }
 
-    if (ui->passwordInput->isVisible() && ui->passwordInput->text().isEmpty()) {
-        ui->passwordMessage->setVisible(true);
-        valid = false;
+    if (ui->passwordInput->isVisible()) {
+        QString pwd = ui->passwordInput->text();
+        if (pwd.isEmpty()) {
+            ui->passwordMessage->setText("Password is required.");
+            ui->passwordMessage->setVisible(true);
+            valid = false;
+        } else {
+            std::regex criteria("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+            std::string pwdStd = pwd.toStdString();
+            if (!std::regex_match(pwdStd, criteria)) {
+                ui->passwordMessage->setText("Password must have (min 8, upper, lower, digit, special)");
+                ui->passwordMessage->setVisible(true);
+                valid = false;
+            } else {
+                ui->passwordMessage->setVisible(false);
+            }
+        }
     } else {
         ui->passwordMessage->setVisible(false);
     }

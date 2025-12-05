@@ -96,24 +96,30 @@ void menuWindow::loadUserPermissions()
 {
     userPermissions.clear();
 
-    // Obtener ID del rol por nombre
-    int roleId = rights->getRoleManager().getRoleIdByName(userRole.toStdString());
+    auto roleLines = client.requestRolesList();
 
-    if (roleId == -1) {
-        qDebug() << "Error: Rol no encontrado:" << userRole;
-        return;
+    std::string foundPermissions;
+    for (const auto &line : roleLines) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string idStr, roleName, permissions;
+        if (std::getline(iss, idStr, ';') && std::getline(iss, roleName, ';')) {
+            if (roleName == userRole.toStdString()) {
+                std::getline(iss, permissions);
+                foundPermissions = permissions;
+                break;
+            }
+        }
     }
 
-    // Obtener permisos del rol
-    std::string permissions = rights->getPermissions(roleId);
-
-    if (permissions.empty()) {
-        qDebug() << "Advertencia: El rol" << userRole << "no tiene permisos asignados";
+    if (foundPermissions.empty()) {
+        qDebug() << "Advertencia: El rol" << userRole << "no tiene permisos asignados o no se encontró en Auth";
         return;
     }
 
     // Parsear permisos (separados por coma)
-    std::istringstream iss(permissions);
+    std::istringstream iss(foundPermissions);
     std::string perm;
 
     while (std::getline(iss, perm, ',')) {
@@ -200,7 +206,7 @@ void menuWindow::loadRolesTable()
             std::getline(iss, roleName, ';')) {
             this->rolesAmount++;
             int roleId = std::stoi(idStr);
-            permissions = rights->getPermissions(roleId);
+            std::getline(iss, permissions);
 
             ui->rolesTable->insertRow(row);
             ui->rolesTable->setItem(row, 0, new QTableWidgetItem(QString::number(roleId)));
@@ -231,11 +237,15 @@ void menuWindow::onEditRoleClicked(int row)
         QString newRoleName = dialog.getRole();
         QString newPermissions = dialog.getPermissions();
 
-        rights->getRoleManager().updateRole(
-            roleName.toStdString(),
-            newRoleName.toStdString(),
-            newPermissions.toStdString()
-            );
+        // Enviar la actualización a Auth en lugar de modificar archivos locales
+        bool ok = client.sendRoleUpdate(roleName.toStdString(),
+                                        newRoleName.toStdString(),
+                                        newPermissions.toStdString());
+        if (!ok) {
+            qDebug() << "Error al actualizar rol en Auth:" << roleName;
+        } else {
+            qDebug() << "Rol actualizado en Auth:" << roleName << "->" << newRoleName;
+        }
 
         loadRolesTable();
     }
@@ -323,7 +333,7 @@ void menuWindow::loadUsersTable()
 
 void menuWindow::on_addUserButton_clicked()
 {
-    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    std::vector<std::string> roleLines = client.requestRolesList();
     QList<Role> currentRoles;
 
     for (const auto &line : roleLines) {
@@ -361,7 +371,7 @@ void menuWindow::onEditUserRoleClicked(int row)
     QString username = ui->usersTable->item(row, 0)->text();
     QString role = ui->usersTable->item(row, 1)->text();
 
-    std::vector<std::string> roleLines = rights->getRoleManager().readRolesFile();
+    std::vector<std::string> roleLines = client.requestRolesList();
     QList<Role> currentRoles;
 
     for (const auto &line : roleLines) {
